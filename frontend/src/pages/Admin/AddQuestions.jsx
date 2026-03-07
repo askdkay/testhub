@@ -1,341 +1,315 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import API from '../../services/api';
+import { FiUpload, FiPlus, FiTrash2, FiCopy, FiCheck } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 
 function AddQuestions() {
-    const navigate = useNavigate();
-    const [tests, setTests] = useState([]);
-    const [selectedTest, setSelectedTest] = useState('');
-    const [questions, setQuestions] = useState([
-        {
-            question_text: '',
-            option_a: '',
-            option_b: '',
-            option_c: '',
-            option_d: '',
-            correct_answer: 'A',
-            explanation: ''
-        }
+  const { testId } = useParams();
+  const [questions, setQuestions] = useState([
+    {
+      question_text: '',
+      option_a: '',
+      option_b: '',
+      option_c: '',
+      option_d: '',
+      correct_answer: 'A',
+      explanation: ''
+    }
+  ]);
+  
+  const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const addQuestion = () => {
+    setQuestions([
+      ...questions,
+      {
+        question_text: '',
+        option_a: '',
+        option_b: '',
+        option_c: '',
+        option_d: '',
+        correct_answer: 'A',
+        explanation: ''
+      }
     ]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+  };
 
-    useEffect(() => {
-        loadTests();
-    }, []);
+  const removeQuestion = (index) => {
+    if (questions.length > 1) {
+      setQuestions(questions.filter((_, i) => i !== index));
+    }
+  };
 
-    const loadTests = async () => {
-        try {
-            const res = await API.get('/tests');
-            setTests(res.data);
-        } catch (error) {
-            console.error('Error loading tests:', error);
-        }
+  const handleQuestionChange = (index, field, value) => {
+    const updated = [...questions];
+    updated[index][field] = value;
+    setQuestions(updated);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = (evt) => {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet);
+      
+      // Convert Excel format to our format
+      const newQuestions = json.map(row => ({
+        question_text: row.Question || row.question || '',
+        option_a: row['Option A'] || row.option_a || '',
+        option_b: row['Option B'] || row.option_b || '',
+        option_c: row['Option C'] || row.option_c || '',
+        option_d: row['Option D'] || row.option_d || '',
+        correct_answer: row['Correct Answer'] || row.correct_answer || 'A',
+        explanation: row.Explanation || row.explanation || ''
+      }));
+      
+      setQuestions([...questions, ...newQuestions]);
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(0), 2000);
     };
+    
+    reader.readAsArrayBuffer(file);
+  };
 
-    const handleQuestionChange = (index, field, value) => {
-        const updatedQuestions = [...questions];
-        updatedQuestions[index][field] = value;
-        setQuestions(updatedQuestions);
-    };
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      await API.post('/admin/questions', {
+        testId,
+        questions
+      });
+      alert('Questions added successfully!');
+    } catch (error) {
+      console.error('Error adding questions:', error);
+      alert('Failed to add questions');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const addQuestion = () => {
-        setQuestions([
-            ...questions,
-            {
-                question_text: '',
-                option_a: '',
-                option_b: '',
-                option_c: '',
-                option_d: '',
-                correct_answer: 'A',
-                explanation: ''
-            }
-        ]);
-    };
+  return (
+    <div className="min-h-screen bg-gray-50 ml-64 p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Add Questions</h1>
+            <p className="text-gray-500 mt-1">Test ID: {testId}</p>
+          </div>
+          
+          <div className="flex space-x-4">
+            {/* Bulk Upload */}
+            <div className="relative">
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileUpload}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <button className="btn-success flex items-center px-4">
+                <FiUpload className="mr-2" />
+                Bulk Upload
+              </button>
+            </div>
+            
+            <button
+              onClick={addQuestion}
+              className="btn-primary flex items-center"
+            >
+              <FiPlus className="mr-2" />
+              Add Question
+            </button>
+          </div>
+        </div>
 
-    const removeQuestion = (index) => {
-        if (questions.length > 1) {
-            setQuestions(questions.filter((_, i) => i !== index));
-        }
-    };
+        {/* Upload Progress */}
+        {uploadProgress > 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between text-sm mb-1">
+              <span>Uploading...</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!selectedTest) {
-            setError('Please select a test');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            await API.post('/admin/questions', {
-                testId: selectedTest,
-                questions
-            });
-            alert('Questions added successfully!');
-            navigate('/admin');
-        } catch (error) {
-            setError(error.response?.data?.message || 'Error adding questions');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-            <h1 style={{ fontSize: '2rem', marginBottom: '2rem' }}>Add Questions</h1>
-
-            {error && (
-                <div style={{
-                    color: 'red',
-                    padding: '1rem',
-                    backgroundColor: '#fee',
-                    borderRadius: '5px',
-                    marginBottom: '1rem'
-                }}>
-                    {error}
+        {/* Questions List */}
+        <div className="space-y-6">
+          {questions.map((q, index) => (
+            <div key={index} className="card relative">
+              {/* Question Number & Actions */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Question #{index + 1}</h3>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      const copy = { ...q };
+                      setQuestions([...questions, copy]);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded text-gray-600"
+                    title="Duplicate"
+                  >
+                    <FiCopy size={18} />
+                  </button>
+                  <button
+                    onClick={() => removeQuestion(index)}
+                    className="p-2 hover:bg-red-100 rounded text-red-600"
+                    title="Delete"
+                  >
+                    <FiTrash2 size={18} />
+                  </button>
                 </div>
-            )}
+              </div>
 
-            <form onSubmit={handleSubmit}>
-                {/* Test Selection */}
-                <div style={{ marginBottom: '2rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                        Select Test *
+              {/* Question Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Question Text *
+                  </label>
+                  <textarea
+                    rows="2"
+                    value={q.question_text}
+                    onChange={(e) => handleQuestionChange(index, 'question_text', e.target.value)}
+                    className="input-field"
+                    placeholder="Enter your question here..."
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option A *
+                    </label>
+                    <input
+                      type="text"
+                      value={q.option_a}
+                      onChange={(e) => handleQuestionChange(index, 'option_a', e.target.value)}
+                      className="input-field"
+                      placeholder="Option A"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option B *
+                    </label>
+                    <input
+                      type="text"
+                      value={q.option_b}
+                      onChange={(e) => handleQuestionChange(index, 'option_b', e.target.value)}
+                      className="input-field"
+                      placeholder="Option B"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option C *
+                    </label>
+                    <input
+                      type="text"
+                      value={q.option_c}
+                      onChange={(e) => handleQuestionChange(index, 'option_c', e.target.value)}
+                      className="input-field"
+                      placeholder="Option C"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option D *
+                    </label>
+                    <input
+                      type="text"
+                      value={q.option_d}
+                      onChange={(e) => handleQuestionChange(index, 'option_d', e.target.value)}
+                      className="input-field"
+                      placeholder="Option D"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Correct Answer *
                     </label>
                     <select
-                        value={selectedTest}
-                        onChange={(e) => setSelectedTest(e.target.value)}
-                        required
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            border: '1px solid #ddd',
-                            borderRadius: '5px',
-                            fontSize: '1rem'
-                        }}
+                      value={q.correct_answer}
+                      onChange={(e) => handleQuestionChange(index, 'correct_answer', e.target.value)}
+                      className="input-field"
+                      required
                     >
-                        <option value="">Choose a test...</option>
-                        {tests.map(test => (
-                            <option key={test.id} value={test.id}>
-                                {test.title} ({test.questions_count || 0} questions)
-                            </option>
-                        ))}
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Marks
+                    </label>
+                    <input
+                      type="number"
+                      value="4"
+                      disabled
+                      className="input-field bg-gray-50"
+                    />
+                  </div>
                 </div>
 
-                {/* Questions */}
-                {questions.map((q, index) => (
-                    <div key={index} style={{
-                        marginBottom: '2rem',
-                        padding: '1.5rem',
-                        backgroundColor: '#f8f9fa',
-                        borderRadius: '10px',
-                        border: '1px solid #e0e0e0'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                            <h3 style={{ color: '#2563eb' }}>Question {index + 1}</h3>
-                            {questions.length > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={() => removeQuestion(index)}
-                                    style={{
-                                        padding: '0.25rem 0.5rem',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Remove
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Question Text */}
-                        <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-                                Question Text *
-                            </label>
-                            <textarea
-                                value={q.question_text}
-                                onChange={(e) => handleQuestionChange(index, 'question_text', e.target.value)}
-                                required
-                                rows="2"
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '5px'
-                                }}
-                                placeholder="Enter question..."
-                            />
-                        </div>
-
-                        {/* Options */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Option A *</label>
-                                <input
-                                    type="text"
-                                    value={q.option_a}
-                                    onChange={(e) => handleQuestionChange(index, 'option_a', e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Option B *</label>
-                                <input
-                                    type="text"
-                                    value={q.option_b}
-                                    onChange={(e) => handleQuestionChange(index, 'option_b', e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Option C *</label>
-                                <input
-                                    type="text"
-                                    value={q.option_c}
-                                    onChange={(e) => handleQuestionChange(index, 'option_c', e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Option D *</label>
-                                <input
-                                    type="text"
-                                    value={q.option_d}
-                                    onChange={(e) => handleQuestionChange(index, 'option_d', e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Correct Answer and Explanation */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Correct Answer *</label>
-                                <select
-                                    value={q.correct_answer}
-                                    onChange={(e) => handleQuestionChange(index, 'correct_answer', e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                >
-                                    <option value="A">A</option>
-                                    <option value="B">B</option>
-                                    <option value="C">C</option>
-                                    <option value="D">D</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.25rem' }}>Explanation</label>
-                                <input
-                                    type="text"
-                                    value={q.explanation}
-                                    onChange={(e) => handleQuestionChange(index, 'explanation', e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '5px'
-                                    }}
-                                    placeholder="Optional explanation..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-
-                {/* Add Question Button */}
-                <button
-                    type="button"
-                    onClick={addQuestion}
-                    style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '5px',
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                        marginBottom: '1rem'
-                    }}
-                >
-                    + Add Another Question
-                </button>
-
-                {/* Submit Buttons */}
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            flex: 1,
-                            padding: '0.75rem',
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '5px',
-                            fontSize: '1rem',
-                            cursor: loading ? 'not-allowed' : 'pointer'
-                        }}
-                    >
-                        {loading ? 'Saving...' : 'Save All Questions'}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => navigate('/admin')}
-                        style={{
-                            padding: '0.75rem 2rem',
-                            backgroundColor: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '5px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Cancel
-                    </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Explanation (Optional)
+                  </label>
+                  <textarea
+                    rows="2"
+                    value={q.explanation}
+                    onChange={(e) => handleQuestionChange(index, 'explanation', e.target.value)}
+                    className="input-field"
+                    placeholder="Explain why this answer is correct..."
+                  />
                 </div>
-            </form>
+              </div>
+
+              {/* Status Indicator */}
+              {q.question_text && q.option_a && (
+                <div className="absolute top-4 right-16">
+                  <FiCheck className="text-green-600" size={20} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-    );
+
+        {/* Submit Button */}
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="btn-primary px-8 py-3 text-lg"
+          >
+            {loading ? 'Saving...' : `Save ${questions.length} Questions`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default AddQuestions;

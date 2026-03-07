@@ -6,9 +6,16 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Tests from './pages/Tests';
 import TakeTest from './pages/TakeTest';
-import AdminDashboard from './pages/Admin/Dashboard';
+import Dashboard from './pages/Admin/Dashboard';
+import Students from './pages/Admin/Students';
 import AddTest from './pages/Admin/AddTest';
 import AddQuestions from './pages/Admin/AddQuestions';
+import TailwindTest from './components/TailwindTest';
+import ForgotPassword from './pages/ForgotPassword';
+import TestResult from './pages/TestResult';
+
+
+
 
 function PrivateRoute({ children }) {
     const { user } = useAuth();
@@ -29,6 +36,7 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/tests" element={
                         <PrivateRoute>
                             <Tests />
@@ -43,7 +51,12 @@ function App() {
                     {/* Admin Routes */}
                     <Route path="/admin" element={
                         <AdminRoute>
-                            <AdminDashboard />
+                            <Dashboard />
+                        </AdminRoute>
+                    } />
+                    <Route path="/admin/students" element={
+                        <AdminRoute>
+                            <Students />
                         </AdminRoute>
                     } />
                     <Route path="/admin/add-test" element={
@@ -51,11 +64,17 @@ function App() {
                             <AddTest />
                         </AdminRoute>
                     } />
-                    <Route path="/admin/add-questions" element={
+                    <Route path="/admin/add-questions/:testId" element={
                         <AdminRoute>
                             <AddQuestions />
                         </AdminRoute>
                     } />
+                    <Route path="/test-result/:testId" element={
+  <PrivateRoute>
+    <TestResult />
+  </PrivateRoute>
+} />
+                    <Route path="/test-tailwind" element={<TailwindTest />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

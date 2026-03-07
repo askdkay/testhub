@@ -1,16 +1,178 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  body {
+    @apply bg-black text-white;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl  border  rounded-3xl;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent;
+  }
+  
+  .glow-effect {
+    @apply relative;
+  }
+  
+  .glow-effect::after {
+    content: '';
+    @apply absolute inset-0 rounded-full blur-xl opacity-0 transition-opacity;
+    background: inherit;
+  }
+  
+  .glow-effect:hover::after {
+    @apply opacity-50;
+  }
 }
 
-a {
-  text-decoration: none;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #10b981, #2563eb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #059669, #1d4ed8);
+}
+
+/* Loading Animation */
+.loader {
+  border: 3px solid rgba(16, 185, 129, 0.1);
+  border-top-color: #10b981;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Add these to your existing CSS */
+
+/* Custom Scrollbar for Test Page */
+.test-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.test-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.test-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #10b981, #2563eb);
+  border-radius: 10px;
+}
+
+.test-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #059669, #1d4ed8);
+}
+
+/* Glowing effect for active elements */
+.glow-on-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-on-hover::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.glow-on-hover:hover::after {
+  opacity: 1;
+}
+
+/* Timer pulse animation */
+@keyframes timerPulse {
+  0%, 100% {
+    text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 40px rgba(239, 68, 68, 0.8);
+  }
+}
+
+.timer-critical {
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+/* Bilingual text style */
+.bilingual-text {
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.bilingual-text::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50px;
+  height: 2px;
+  background: linear-gradient(to right, #10b981, #2563eb);
+  border-radius: 2px;
+}
+
+/* Option hover effect */
+.option-hover-effect {
+  transition: all 0.3s ease;
+}
+
+.option-hover-effect:hover {
+  transform: translateX(5px);
+}
+
+/* Chapter badge styles */
+.chapter-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+.chapter-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.chapter-badge:hover::before {
+  left: 100%;
 }
