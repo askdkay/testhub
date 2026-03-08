@@ -35,7 +35,7 @@ function Navbar() {
     { name: 'Home', path: '/' },
     { name: 'Exams', path: '/exams' },
     { name: 'Test Series', path: '/tests' },
-    { name: 'Pricing', path: '/pricing' },
+    { name: 'Free Tests', path: '/fff' },
     { name: 'Gk & Current Affairs', path: '/GkCurrentAffairs' },
   ];
 

@@ -19,6 +19,7 @@ import Profile from "./pages/Profile";
 import Exams from './pages/Exams';
 import GkCurrentAffairs from './pages/GkCurrentAffairs';
 import UserAnalytics from './pages/Admin/Analytics';
+import FreeTests from "./pages/FFF";
 
 // Private Route for Logged in users
 function PrivateRoute({ children }) {
@@ -67,6 +68,7 @@ function App() {
           <Route path="/exams" element={<Exams />} />
           <Route path="/GkCurrentAffairs" element={<GkCurrentAffairs />} />
           <Route path='/test-tailwind' element={<TailwindTest />} />
+          <Route path='/fff' element={<FreeTests />} />
 
           {/* User Protected Routes */}
           <Route path='/tests' element={<PrivateRoute><Tests /></PrivateRoute>} />
