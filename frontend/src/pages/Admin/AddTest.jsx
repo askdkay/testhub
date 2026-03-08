@@ -39,7 +39,7 @@ function AddTest() {
     description: '',
     duration: 60,
     category: 'SSC',
-    subject: 'General',
+    // subject: 'General',
     difficulty: 'medium', // easy, medium, hard
     is_free: true,
     price: 0,
@@ -419,7 +419,7 @@ function AddTest() {
                   </div>
 
                   {/* Subject */}
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Subject
                     </label>
@@ -435,7 +435,7 @@ function AddTest() {
                       <option value="Reasoning">Reasoning</option>
                       <option value="GK">General Knowledge</option>
                     </select>
-                  </div>
+                  </div> */}
 
                   {/* Difficulty */}
                   <div>

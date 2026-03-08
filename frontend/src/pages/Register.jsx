@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import Navbar from '../components/Navbar';
-import { 
-  FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff, 
-  FiArrowRight, FiCheckCircle 
+// import Navbar from '../components/Navbar';
+import {
+  FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff,
+  FiCheckCircle, FiX
 } from 'react-icons/fi';
 import { FaGoogle, FaFacebook, FaGithub } from 'react-icons/fa';
 
@@ -35,13 +35,13 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -54,7 +54,7 @@ function Register() {
 
     setLoading(true);
     setError('');
-    
+
     const result = await register({
       name: formData.name,
       email: formData.email,
@@ -62,7 +62,7 @@ function Register() {
       phone: formData.phone,
       exam_preparation: formData.exam_preparation
     });
-    
+
     if (result.success) {
       navigate('/tests');
     } else {
@@ -88,315 +88,237 @@ function Register() {
   const strengthColor = ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
 
   return (
-    <div className="min-h-screen bg-deep-black text-white font-['Inter'] relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] pointer-events-none opacity-20"></div>
-      <div className="fixed inset-0 bg-radial-glow pointer-events-none"></div>
-      
-      {/* Animated Background Elements */}
-      <motion.div
-        animate={{ 
-          scale: [1, 1.2, 1],
-          rotate: [0, 90, 0],
-        }}
-        transition={{ duration: 20, repeat: Infinity }}
-        className="absolute top-20 right-20 w-64 h-64 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-full blur-3xl"
-      />
-      <motion.div
-        animate={{ 
-          scale: [1, 1.3, 1],
-          rotate: [0, -90, 0],
-        }}
-        transition={{ duration: 25, repeat: Infinity }}
-        className="absolute bottom-20 left-20 w-96 h-96 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-full blur-3xl"
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0C10] text-gray-900 dark:text-white font-['Inter'] relative flex items-center justify-center p-4 transition-colors duration-300">
 
-      <Navbar />
+      {/* Background Bottom Glow (Matching Image) */}
+      <div className="fixed bottom-0 left-0 right-0 h-[50vh] bg-gradient-to-t from-blue-600/20 dark:from-blue-600/30 to-transparent pointer-events-none"></div>
 
-      {/* Main Content */}
-      <div className="relative pt-32 pb-20 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Header */}
+      {/* Main Content Card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="relative w-full max-w-md bg-white dark:bg-[#1C1C24]/90 backdrop-blur-xl border border-gray-200 dark:border-white/5 rounded-[24px] p-6 md:p-8 shadow-2xl"
+      >
+        {/* Top Header / Tabs */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex bg-gray-100 dark:bg-[#0B0C10] rounded-full p-1">
+            <div className="bg-white dark:bg-[#25252D] shadow-sm text-gray-900 dark:text-white px-5 py-1.5 rounded-full text-sm font-medium transition-all">
+              Sign up
+            </div>
+            <Link
+              to="/login"
+              className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 px-5 py-1.5 rounded-full text-sm font-medium transition-colors"
+            >
+              Sign in
+            </Link>
+          </div>
+
+          <button className="p-2 bg-gray-100 dark:bg-[#25252D] rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors">
+            <FiX size={16} />
+          </button>
+        </div>
+
+        <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+          Create an account
+        </h1>
+
+        {/* Error Message */}
+        {error && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-8"
+            className="mb-6 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm"
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Create <span className="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">Account</span>
-            </h1>
-            <p className="text-gray-400">
-              Join 5 lakh+ aspirants preparing for competitive exams
-            </p>
+            {error}
           </motion.div>
+        )}
 
-          {/* Register Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-8 shadow-2xl"
-          >
-            {/* Error Message */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm"
-              >
-                {error}
-              </motion.div>
-            )}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name *
-                </label>
-                <div className="relative">
-                  <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-glass-border rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-              </div>
+          {/* First Row: Name */}
+          <div className="relative">
+            <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              placeholder="Full Name"
+              required
+            />
+          </div>
 
-              {/* Email Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address *
-                </label>
-                <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-glass-border rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
-                    placeholder="enter@email.com"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Email */}
+          <div className="relative">
+            <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
 
-              {/* Phone Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Phone Number *
-                </label>
-                <div className="relative">
-                  <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-glass-border rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
-                    placeholder="10 digit mobile number"
-                    maxLength="10"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Phone
+          <div className="relative">
+            <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              placeholder="Mobile Number"
+              maxLength="10"
+              required
+            />
+          </div> */}
 
-              {/* Exam Preparation */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Preparing for *
-                </label>
-                <select
-                  name="exam_preparation"
-                  value={formData.exam_preparation}
+          {/* Exam Prep */}
+          {/* <div>
+            <select
+              name="exam_preparation"
+              value={formData.exam_preparation}
+              onChange={handleChange}
+              className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 px-4 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none"
+              required
+            >
+              <option value="SSC">SSC CGL/CHSL</option>
+              <option value="UPSC">UPSC Civil Services</option>
+              <option value="Banking">Banking (IBPS/RRB)</option>
+              <option value="Railway">Railway (RRB NTPC)</option>
+              <option value="Defence">Defence (NDA/CDS)</option>
+              <option value="State PSC">State PSC</option>
+              <option value="Teaching">Teaching (CTET/UPTET)</option>
+            </select>
+          </div> */}
+
+          {/* Password Group (Pass + Confirm side by side for compactness, or stacked) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Password */}
+            <div>
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-glass-border rounded-xl py-3 px-4 text-white focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
+                  className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 pl-10 pr-10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="Password"
                   required
-                >
-                  <option value="SSC">SSC CGL/CHSL</option>
-                  <option value="UPSC">UPSC Civil Services</option>
-                  <option value="Banking">Banking (IBPS/RRB)</option>
-                  <option value="Railway">Railway (RRB NTPC)</option>
-                  <option value="Defence">Defence (NDA/CDS)</option>
-                  <option value="State PSC">State PSC</option>
-                  <option value="Teaching">Teaching (CTET/UPTET)</option>
-                </select>
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password *
-                </label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-glass-border rounded-xl py-3 pl-12 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
-                    placeholder="Minimum 6 characters"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                  </button>
-                </div>
-
-                {/* Password Strength Indicator */}
-                {formData.password && (
-                  <div className="mt-2">
-                    <div className="flex space-x-1 mb-1">
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`h-1 flex-1 rounded-full transition-all ${
-                            i < strength ? strengthColor[strength-1] : 'bg-gray-700'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className={`text-xs ${strengthColor[strength-1].replace('bg-', 'text-')}`}>
-                      {strengthText[strength-1] || 'Enter password'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Confirm Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Confirm Password *
-                </label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-glass-border rounded-xl py-3 pl-12 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 transition-all"
-                    placeholder="Re-enter password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Terms & Conditions */}
-              <div className="flex items-start space-x-3">
+                />
                 <button
                   type="button"
-                  onClick={() => setAcceptedTerms(!acceptedTerms)}
-                  className={`mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                    acceptedTerms 
-                      ? 'bg-green-500 border-green-500' 
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
                 >
-                  {acceptedTerms && <FiCheckCircle className="text-white text-sm" />}
+                  {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                 </button>
-                <label className="text-sm text-gray-400">
-                  I agree to the{' '}
-                  <a href="#" className="text-green-400 hover:text-green-300">Terms of Service</a>
-                  {' '}and{' '}
-                  <a href="#" className="text-green-400 hover:text-green-300">Privacy Policy</a>
-                </label>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center group"
-              >
-                {loading ? (
-                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    Create Account
-                    <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Social Registration */}
-            <div className="mt-8">
-              <div className="relative">
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-glass-bg text-gray-400">Or sign up with</span>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-3 gap-3">
-                {[
-                  { icon: FaGoogle, color: 'hover:bg-red-500/20', text: 'Google' },
-                  { icon: FaFacebook, color: 'hover:bg-blue-500/20', text: 'Facebook' },
-                  { icon: FaGithub, color: 'hover:bg-gray-500/20', text: 'Github' }
-                ].map((provider, index) => (
-                  <motion.button
-                    key={index}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`flex items-center justify-center p-3 bg-black/50 border border-glass-border rounded-xl ${provider.color} transition-all group`}
-                  >
-                    <provider.icon className="text-gray-400 group-hover:text-white transition-colors" size={20} />
-                  </motion.button>
-                ))}
               </div>
             </div>
 
-            {/* Login Link */}
-            <p className="mt-8 text-center text-gray-400">
-              Already have an account?{' '}
-              <Link to="/login" className="text-green-400 hover:text-green-300 font-semibold transition-colors">
-                Login here
-              </Link>
-            </p>
-          </motion.div>
+            {/* Confirm Password */}
+            <div>
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 dark:bg-[#25252D] border border-gray-200 dark:border-white/5 rounded-xl py-3 pl-10 pr-10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="Confirm Pass"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
 
-          {/* Trust Badges */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-gray-400"
-          >
-            <span className="flex items-center">
-              <FiCheckCircle className="mr-2 text-green-500" />
-              5L+ Users
-            </span>
-            <span className="flex items-center">
-              <FiCheckCircle className="mr-2 text-green-500" />
-              SSL Secure
-            </span>
-            <span className="flex items-center">
-              <FiCheckCircle className="mr-2 text-green-500" />
-              100% Safe
-            </span>
-          </motion.div>
-        </div>
-      </div>
+          {/* Password Strength Indicator */}
+          {formData.password && (
+            <div className="mt-1">
+              <div className="flex space-x-1 mb-1">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-[1px] flex-1 rounded-full transition-all ${i < strength ? strengthColor[strength - 1] : 'bg-gray-200 dark:bg-gray-700'
+                      }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Terms Checkbox */}
+          <div className="flex items-start space-x-2 py-2">
+            <button
+              type="button"
+              onClick={() => setAcceptedTerms(!acceptedTerms)}
+              className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-colors ${acceptedTerms
+                ? 'bg-blue-500 border-blue-500'
+                : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                }`}
+            >
+              {acceptedTerms && <FiCheckCircle className="text-white text-xs" />}
+            </button>
+            <label className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
+              By creating an account, you agree to our{' '}
+              <a href="#" className="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400">Terms of Service</a>
+              {' '}and{' '}
+              <a href="#" className="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400">Privacy Policy</a>
+            </label>
+          </div>
+          <div className="flex flex-row">
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#407BFF] hover:bg-[#3066E5] text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center "
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                "Create an account"
+              )}
+            </button>
+            {/* Social Buttons (Restyled) */}
+            <div className="flex  ml-1">
+              {[
+                { icon: FaGoogle, label: 'Google' },
+                // { icon: FaFacebook, label: 'Facebook' },
+                // { icon: FaGithub, label: 'Github' }
+              ].map((provider, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center justify-center w-full px-4 ml-3 py- bg-gray-50 dark:bg-[#25252D] hover:bg-gray-100 dark:hover:bg-[#2A2A35] border border-gray-200 dark:border-white/5 rounded-xl transition-colors group"
+                >
+                  <provider.icon className="text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={18} />
+                </motion.button>
+              ))}
+            </div></div>
+        </form>
+
+        {/* Divider */}
+
+
+
+      </motion.div>
     </div>
   );
 }

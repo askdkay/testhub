@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { useInView as useInViewHook } from 'react-intersection-observer';
-import Navbar from '../components/Navbar';
+// import Navbar from '../components/Navbar';
 import {
   FiBookOpen, FiClock, FiAward, FiTrendingUp, FiUsers,
   FiStar, FiDownload, FiCheckCircle, FiChevronRight,
@@ -54,7 +54,7 @@ function Home() {
       <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] pointer-events-none opacity-20"></div>
       <div className="fixed inset-0 bg-radial-glow pointer-events-none"></div>
 
-      <Navbar />
+      {/* <Navbar /> */}
 
       {/* Hero Section */}
       <motion.section

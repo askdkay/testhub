@@ -1,84 +1,97 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Tests from './pages/Tests';
-import TakeTest from './pages/TakeTest';
-import Dashboard from './pages/Admin/Dashboard';
-import Students from './pages/Admin/Students';
-import AddTest from './pages/Admin/AddTest';
-import AddQuestions from './pages/Admin/AddQuestions';
-import TailwindTest from './components/TailwindTest';
-import ForgotPassword from './pages/ForgotPassword';
-import TestResult from './pages/TestResult';
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import AdminLogin from "./pages/Admin/AdminLogin";
+import Register from "./pages/Register";
+import Tests from "./pages/Tests";
+import TakeTest from "./pages/TakeTest";
+import Dashboard from "./pages/Admin/Dashboard";
+import Students from "./pages/Admin/Students";
+import AddTest from "./pages/Admin/AddTest";
+import AddQuestions from "./pages/Admin/AddQuestions";
+import TailwindTest from "./components/TailwindTest";
+import ForgotPassword from "./pages/ForgotPassword";
+import TestResult from "./pages/TestResult";
+import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import Exams from './pages/Exams';
+import GkCurrentAffairs from './pages/GkCurrentAffairs';
+import UserAnalytics from './pages/Admin/Analytics';
 
-
-
-
+// Private Route for Logged in users
 function PrivateRoute({ children }) {
-    const { user } = useAuth();
-    return user ? children : <Navigate to="/login" />;
+  const { user, loading } = useAuth(); // Loading state import ki
+
+  if (loading) return <div className="h-screen flex items-center justify-center text-white">Loading...</div>; // Jab tak data check ho raha hai, tab tak wait karega
+
+  return user ? children : <Navigate to='/login' replace />;
 }
 
+// Admin Route for Admin users
 function AdminRoute({ children }) {
-    const { user } = useAuth();
-    return user?.role === 'admin' ? children : <Navigate to="/" />;
+  const { user, loading } = useAuth();
+
+  if (loading) return <div className="h-screen flex items-center justify-center text-white bg-gray-950">Loading Admin...</div>;
+
+  // Agar user admin nahi hai, toh ab usko `/admin/login` par bhejenge
+  return user?.role === "admin" ? children : <Navigate to='/admin/login' replace />;
+}
+
+// Navbar Wrapper logic
+function NavbarWrapper() {
+  const location = useLocation();
+  const hideNavbarPaths = ['/login', '/register', '/forgot-password'];
+  const shouldHide = location.pathname.startsWith('/admin') || hideNavbarPaths.includes(location.pathname);
+
+  if (shouldHide) {
+    return null;
+  }
+  return <Navbar />;
 }
 
 function App() {
-    return (
-        <AuthProvider>
-            <BrowserRouter>
-                <Navbar />
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/tests" element={
-                        <PrivateRoute>
-                            <Tests />
-                        </PrivateRoute>
-                    } />
-                    <Route path="/test/:id" element={
-                        <PrivateRoute>
-                            <TakeTest />
-                        </PrivateRoute>
-                    } />
-                    
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={
-                        <AdminRoute>
-                            <Dashboard />
-                        </AdminRoute>
-                    } />
-                    <Route path="/admin/students" element={
-                        <AdminRoute>
-                            <Students />
-                        </AdminRoute>
-                    } />
-                    <Route path="/admin/add-test" element={
-                        <AdminRoute>
-                            <AddTest />
-                        </AdminRoute>
-                    } />
-                    <Route path="/admin/add-questions/:testId" element={
-                        <AdminRoute>
-                            <AddQuestions />
-                        </AdminRoute>
-                    } />
-                    <Route path="/test-result/:testId" element={
-  <PrivateRoute>
-    <TestResult />
-  </PrivateRoute>
-} />
-                    <Route path="/test-tailwind" element={<TailwindTest />} />
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-    );
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <NavbarWrapper />
+
+        {/* Sirf EK Routes component hona chahiye */}
+        <Routes>
+          {/* Public Routes */}
+          <Route path='/' element={<Home />} />
+          <Route path='/login' element={<Login />} />
+          <Route path='/register' element={<Register />} />
+          <Route path='/forgot-password' element={<ForgotPassword />} />
+          <Route path="/exams" element={<Exams />} />
+          <Route path="/GkCurrentAffairs" element={<GkCurrentAffairs />} />
+          <Route path='/test-tailwind' element={<TailwindTest />} />
+
+          {/* User Protected Routes */}
+          <Route path='/tests' element={<PrivateRoute><Tests /></PrivateRoute>} />
+          <Route path='/test/:id' element={<PrivateRoute><TakeTest /></PrivateRoute>} />
+          <Route path='/test-result/:testId' element={<PrivateRoute><TestResult /></PrivateRoute>} />
+          <Route path='/settings' element={<PrivateRoute><Settings /></PrivateRoute>} />
+          <Route path='/profile' element={<PrivateRoute><Profile /></PrivateRoute>} />
+
+          {/* Admin Routes */}
+          <Route path='/admin/login' element={<AdminLogin />} />
+
+  {/* Admin Routes */}
+  <Route path='/admin' element={<AdminRoute><Dashboard /></AdminRoute>} />
+          <Route path='/admin' element={<AdminRoute><Dashboard /></AdminRoute>} />
+          <Route path='/admin/students' element={<AdminRoute><Students /></AdminRoute>} />
+          <Route path='/admin/add-test' element={<AdminRoute><AddTest /></AdminRoute>} />
+          <Route path='/admin/add-questions/:testId' element={<AdminRoute><AddQuestions /></AdminRoute>} />
+          
+          {/* Jo route aapne alag rakha tha, use yahan merge kar diya */}
+          <Route path="/admin/users" element={<AdminRoute><UserAnalytics /></AdminRoute>} />
+        </Routes>
+
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
 export default App;
