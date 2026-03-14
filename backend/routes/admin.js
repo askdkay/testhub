@@ -1,202 +1,399 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/adminController');
-const auth = require('../middleware/auth');
 const db = require('../config/database');
+const auth = require('../middleware/auth');
 
-// 🔥 IMPORTANT: Pehle auth middleware apply karo
+// ✅ IMPORT ADMIN CONTROLLER
+const adminController = require('../controllers/adminController');
+
+// All admin routes require authentication and admin role
 router.use(auth);
 router.use(adminController.isAdmin);
 
-// ============ EXISTING ROUTES (Jo pehle se the) ============
-router.post('/tests', adminController.createTest);
-router.post('/questions', adminController.addQuestions);
-router.get('/users', adminController.getAllUsers);
+// ============================================
+// TEST MANAGEMENT ROUTES
+// ============================================
 
-// ============ NEW ROUTES (Ab add kar rahe hain) ============
-
-// Get dashboard stats
-router.get('/stats', async (req, res) => {
+// Get all tests with details
+router.get('/tests', auth, adminController.isAdmin, async (req, res) => {
   try {
-    console.log('📊 Fetching dashboard stats...');
-    
-    // Users stats
-    const [userStats] = await db.query(`
-      SELECT 
-        COUNT(*) as totalUsers,
-        SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as newToday,
-        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) as activeUsers
-      FROM users
+    const [tests] = await db.query(`
+      SELECT t.*, 
+             (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as total_questions 
+      FROM tests t 
+      ORDER BY t.created_at DESC
     `);
+    res.json(tests);
+  } catch (error) {
+    console.error('Error fetching tests:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all categories
+router.get('/test-categories', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const [categories] = await db.query('SELECT DISTINCT category FROM tests');
+    res.json(categories.map(c => c.category));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get questions for a specific test
+router.get('/tests/:testId/questions', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const [questions] = await db.query(
+      'SELECT * FROM questions WHERE test_id = ? ORDER BY id',
+      [req.params.testId]
+    );
+    res.json(questions);
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create new test
+router.post('/tests', adminController.createTest);
+
+// Update test
+router.put('/tests/:testId', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const { title, description, duration, category, price, status } = req.body;
+    await db.query(
+      'UPDATE tests SET title = ?, description = ?, duration = ?, category = ?, price = ?, status = ? WHERE id = ?',
+      [title, description, duration, category, price, status, req.params.testId]
+    );
+    res.json({ message: 'Test updated successfully' });
+  } catch (error) {
+    console.error('Error updating test:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete test
+router.delete('/tests/:testId', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    await db.query('DELETE FROM tests WHERE id = ?', [req.params.testId]);
+    res.json({ message: 'Test deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting test:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Duplicate test
+router.post('/tests/:testId/duplicate', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const [test] = await db.query('SELECT * FROM tests WHERE id = ?', [req.params.testId]);
+    const originalTest = test[0];
     
-    // Tests stats
-    const [testStats] = await db.query(`
-      SELECT 
-        COUNT(*) as totalTests,
-        SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) as activeTests
-      FROM tests
-    `);
+    const [result] = await db.query(
+      'INSERT INTO tests (title, description, duration, category, price, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [`${originalTest.title} (Copy)`, originalTest.description, originalTest.duration, 
+       originalTest.category, originalTest.price, 'draft', req.userId]
+    );
     
-    // Test attempts today
-    const [todayTests] = await db.query(`
-      SELECT COUNT(*) as testsToday
-      FROM test_attempts
-      WHERE DATE(created_at) = CURDATE()
-    `);
+    // Copy questions
+    const [questions] = await db.query('SELECT * FROM questions WHERE test_id = ?', [req.params.testId]);
+    for (const q of questions) {
+      await db.query(
+        'INSERT INTO questions (test_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [result.insertId, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer, q.explanation]
+      );
+    }
     
-    res.json({
-      totalUsers: userStats[0]?.totalUsers || 0,
-      activeUsers: userStats[0]?.activeUsers || 0,
-      newToday: userStats[0]?.newToday || 0,
-      totalTests: testStats[0]?.totalTests || 0,
-      activeTests: testStats[0]?.activeTests || 0,
-      testsToday: todayTests[0]?.testsToday || 0,
-      totalRevenue: 4567890,
-      monthlyRevenue: 987654,
-      avgScore: 68.5,
-      passRate: 72.3,
-      conversionRate: 23.4,
-      bounceRate: 12.5
+    res.json({ message: 'Test duplicated successfully', testId: result.insertId });
+  } catch (error) {
+    console.error('Error duplicating test:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Publish test
+router.post('/tests/:testId/publish', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const { testId } = req.params;
+    
+    await db.query(
+      'UPDATE tests SET status = ? WHERE id = ?',
+      ['published', testId]
+    );
+    
+    res.json({ message: 'Test published successfully' });
+    
+  } catch (error) {
+    console.error('Error publishing test:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ============================================
+// QUESTIONS MANAGEMENT ROUTES
+// ============================================
+
+// Add questions to test
+router.post('/questions', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const { testId, questions } = req.body;
+    
+    // Debug log
+    console.log('📥 Received request to add questions:', { testId, questionsCount: questions?.length });
+    
+    if (!testId) {
+      return res.status(400).json({ message: 'testId is required' });
+    }
+    
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ message: 'questions array is required' });
+    }
+
+    for (const q of questions) {
+      await db.query(
+        `INSERT INTO questions (
+          test_id, question_text, question_text_hindi,
+          option_a, option_b, option_c, option_d,
+          correct_answer, explanation, explanation_hindi,
+          marks, difficulty, topic, image_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          testId, 
+          q.question_text || '',
+          q.question_text_hindi || null,
+          q.option_a || '',
+          q.option_b || '',
+          q.option_c || '',
+          q.option_d || '',
+          q.correct_answer || 'A',
+          q.explanation || null,
+          q.explanation_hindi || null,
+          q.marks || 4,
+          q.difficulty || 'medium',
+          q.topic || null,
+          q.image_url || null
+        ]
+      );
+    }
+
+    // Update total questions count
+    await db.query(
+      'UPDATE tests SET total_questions = ? WHERE id = ?',
+      [questions.length, testId]
+    );
+
+    res.json({ 
+      message: 'Questions added successfully',
+      count: questions.length 
     });
     
   } catch (error) {
-    console.error('❌ Error fetching stats:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Error adding questions:', error);
+    res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });
 
-// Get recent activity
-router.get('/recent-activity', async (req, res) => {
+// Bulk create test - FIXED VERSION
+router.post('/tests/bulk', auth, adminController.isAdmin, async (req, res) => {
   try {
-    console.log('📝 Fetching recent activity...');
+    console.log('📥 Received bulk test request:', JSON.stringify(req.body, null, 2));
     
-    // Mock data for now (since tables might not exist)
-    const activities = [
-      { id: 1, type: 'user', action: 'New registration', user: 'Rahul Sharma', time: '2 min ago', icon: '👤' },
-      { id: 2, type: 'test', action: 'Test completed', user: 'Priya Patel', time: '5 min ago', icon: '📝', score: 156 },
-      { id: 3, type: 'payment', action: 'Payment received', user: 'Amit Kumar', time: '10 min ago', icon: '💰', amount: 999 }
-    ];
-    
-    res.json(activities);
-    
-  } catch (error) {
-    console.error('❌ Error fetching activity:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+    const {
+      title, description, category, duration, total_questions,
+      total_marks, passing_marks, negative_marking, is_free,
+      price, language, status, banner_image, tags, instructions
+    } = req.body;
 
-// Get top students
-router.get('/top-students', async (req, res) => {
-  try {
-    console.log('🏆 Fetching top students...');
-    
-    const students = [
-      { id: 1, name: 'Priya Sharma', score: 98.5, tests: 45, rank: 1, avatar: '👩‍🎓' },
-      { id: 2, name: 'Rahul Verma', score: 97.2, tests: 52, rank: 2, avatar: '👨‍🎓' },
-      { id: 3, name: 'Amit Kumar', score: 96.8, tests: 38, rank: 3, avatar: '👨‍💼' },
-      { id: 4, name: 'Neha Patel', score: 95.4, tests: 41, rank: 4, avatar: '👩‍💼' },
-      { id: 5, name: 'Vikram Singh', score: 94.7, tests: 33, rank: 5, avatar: '👨‍🏫' }
-    ];
-    
-    res.json(students);
-    
-  } catch (error) {
-    console.error('❌ Error fetching top students:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+    // Validation
+    if (!title) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
 
-// Get popular tests
-router.get('/popular-tests', async (req, res) => {
-  try {
-    console.log('🔥 Fetching popular tests...');
-    
-    const tests = [
-      { id: 1, name: 'SSC CGL Mock Test 2024', attempts: 15432, avgScore: 68, revenue: 876543, status: 'trending' },
-      { id: 2, name: 'UPSC Prelims GS Paper I', attempts: 12345, avgScore: 72, revenue: 765432, status: 'hot' },
-      { id: 3, name: 'IBPS PO Prelims 2024', attempts: 10987, avgScore: 65, revenue: 654321, status: 'new' }
-    ];
-    
-    res.json(tests);
-    
-  } catch (error) {
-    console.error('❌ Error fetching popular tests:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get recent users
-router.get('/recent-users', async (req, res) => {
-  try {
-    console.log('👥 Fetching recent users...');
-    
-    const users = [
-      { id: 1, name: 'Rahul Sharma', email: 'rahul@email.com', exam: 'SSC CGL', joined: '2 min ago', status: 'active', avatar: '👤' },
-      { id: 2, name: 'Priya Patel', email: 'priya@email.com', exam: 'UPSC', joined: '5 min ago', status: 'active', avatar: '👩' },
-      { id: 3, name: 'Amit Kumar', email: 'amit@email.com', exam: 'Banking', joined: '10 min ago', status: 'inactive', avatar: '👨' }
-    ];
-    
-    res.json(users);
-    
-  } catch (error) {
-    console.error('❌ Error fetching recent users:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get chart data
-router.get('/chart-data', async (req, res) => {
-  try {
-    const { range } = req.query;
-    console.log(`📈 Fetching chart data for range: ${range}`);
-    
-    // Mock data
-    const data = {
-      day: {
-        labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-        newUsers: [5, 12, 25, 42, 38, 29],
-        activeUsers: [45, 78, 156, 234, 198, 167],
-        testsTaken: [23, 45, 89, 134, 112, 78]
-      },
-      week: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        newUsers: [45, 52, 48, 67, 89, 112, 98],
-        activeUsers: [234, 289, 312, 356, 398, 423, 387],
-        testsTaken: [145, 178, 192, 210, 234, 267, 245]
-      },
-      month: {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        newUsers: [345, 412, 389, 467],
-        activeUsers: [1234, 1456, 1389, 1567],
-        testsTaken: [654, 723, 812, 897]
-      },
-      year: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        newUsers: [1234, 1456, 1678, 1890, 2100, 2345],
-        activeUsers: [4567, 4789, 5123, 5456, 5789, 6123],
-        testsTaken: [2345, 2567, 2789, 3012, 3234, 3456]
-      }
+    // Set default values
+    const testData = {
+      title: title || '',
+      description: description || '',
+      category: category || 'General',
+      duration: duration || 60,
+      total_questions: total_questions || 0,
+      total_marks: total_marks || 0,
+      passing_marks: passing_marks || 40,
+      negative_marking: negative_marking || 0.25,
+      is_free: is_free || false,
+      price: price || 0,
+      language: language || 'english',
+      status: status || 'draft',
+      banner_image: banner_image || null,
+      tags: tags ? JSON.stringify(tags) : JSON.stringify([]),
+      instructions: instructions || '',
+      created_by: req.userId
     };
+
+    console.log('📤 Inserting test data:', testData);
+
+    // Simple INSERT query with explicit column names
+    const query = `
+      INSERT INTO tests (
+        title, description, category, duration, total_questions,
+        total_marks, passing_marks, negative_marking, is_free,
+        price, language, status, banner_image, tags, instructions,
+        created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      testData.title,
+      testData.description,
+      testData.category,
+      testData.duration,
+      testData.total_questions,
+      testData.total_marks,
+      testData.passing_marks,
+      testData.negative_marking,
+      testData.is_free,
+      testData.price,
+      testData.language,
+      testData.status,
+      testData.banner_image,
+      testData.tags,
+      testData.instructions,
+      testData.created_by
+    ];
+
+    console.log('Executing query with values:', values);
     
-    res.json(data[range] || data.week);
+    const [result] = await db.query(query, values);
+
+    console.log('✅ Test created with ID:', result.insertId);
+
+    res.status(201).json({ 
+      message: 'Test created successfully', 
+      testId: result.insertId 
+    });
     
   } catch (error) {
-    console.error('❌ Error fetching chart data:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Error creating test:', error);
+    console.error('SQL Error:', error.sql);
+    console.error('SQL Message:', error.sqlMessage);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.sqlMessage || error.message 
+    });
   }
 });
 
+// Bulk create questions - FIXED VERSION
+router.post('/questions/bulk', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    console.log('📥 Received bulk questions request:', JSON.stringify(req.body, null, 2));
+    
+    const { testId, questions } = req.body;
 
-// Get all users with details
+    // Validation
+    if (!testId) {
+      return res.status(400).json({ message: 'testId is required' });
+    }
+
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({ message: 'questions array is required' });
+    }
+
+    if (questions.length === 0) {
+      return res.json({ message: 'No questions to add', count: 0 });
+    }
+
+    let addedCount = 0;
+    const errors = [];
+
+    for (const q of questions) {
+      try {
+        const query = `
+          INSERT INTO questions (
+            test_id, question_text, question_text_hindi,
+            option_a, option_b, option_c, option_d,
+            correct_answer, explanation, explanation_hindi,
+            marks, difficulty, topic, image_url
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const values = [
+          testId,
+          q.question_text || '',
+          q.question_text_hindi || null,
+          q.option_a || '',
+          q.option_b || '',
+          q.option_c || '',
+          q.option_d || '',
+          q.correct_answer || 'A',
+          q.explanation || null,
+          q.explanation_hindi || null,
+          q.marks || 4,
+          q.difficulty || 'medium',
+          q.topic || null,
+          q.image_url || null
+        ];
+
+        await db.query(query, values);
+        addedCount++;
+        
+      } catch (qError) {
+        console.error('❌ Error adding individual question:', qError);
+        errors.push(qError.message);
+      }
+    }
+
+    // Update total questions count in tests table
+    if (addedCount > 0) {
+      await db.query(
+        'UPDATE tests SET total_questions = ? WHERE id = ?',
+        [addedCount, testId]
+      );
+    }
+
+    console.log(`✅ Added ${addedCount} questions to test ${testId}`);
+
+    res.json({ 
+      message: 'Questions added successfully',
+      count: addedCount,
+      errors: errors.length > 0 ? errors : undefined
+    });
+    
+  } catch (error) {
+    console.error('❌ Error adding questions:', error);
+    res.status(500).json({ 
+      message: 'Server error: ' + error.message 
+    });
+  }
+});
+
+// Get all users - FIXED VERSION
 router.get('/users', auth, adminController.isAdmin, async (req, res) => {
   try {
-    const [users] = await db.query(`
-      SELECT id, name, email, phone, exam_preparation, role, 
-             created_at, last_login 
-      FROM users 
-      ORDER BY created_at DESC
-    `);
+    // Check if last_login column exists
+    const [columns] = await db.query("SHOW COLUMNS FROM users LIKE 'last_login'");
+    const hasLastLogin = columns.length > 0;
+    
+    let query;
+    if (hasLastLogin) {
+      query = `
+        SELECT id, name, email, phone, exam_preparation, role, 
+               created_at, last_login 
+        FROM users 
+        ORDER BY created_at DESC
+      `;
+    } else {
+      query = `
+        SELECT id, name, email, phone, exam_preparation, role, 
+               created_at 
+        FROM users 
+        ORDER BY created_at DESC
+      `;
+    }
+    
+    const [users] = await db.query(query);
     res.json(users);
+    
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ message: 'Server error' });
@@ -237,6 +434,62 @@ router.get('/user-stats', auth, adminController.isAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching user stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get dashboard stats
+router.get('/stats', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    const [totalUsers] = await db.query('SELECT COUNT(*) as count FROM users');
+    const [totalTests] = await db.query('SELECT COUNT(*) as count FROM tests');
+    const [activeTests] = await db.query("SELECT COUNT(*) as count FROM tests WHERE status = 'published'");
+    const [newToday] = await db.query("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE()");
+    const [testsToday] = await db.query("SELECT COUNT(*) as count FROM test_attempts WHERE DATE(created_at) = CURDATE()");
+    
+    // Revenue calculation (if you have payments table)
+    const [revenue] = await db.query("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'success'");
+    
+    res.json({
+      totalUsers: totalUsers[0].count,
+      activeTests: activeTests[0].count,
+      totalRevenue: revenue[0].total,
+      newToday: newToday[0].count,
+      testsTakenToday: testsToday[0].count,
+      avgScore: 68.5, // Calculate from your data
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get recent activity
+router.get('/recent-activity', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    // Mock data for now - replace with actual queries
+    const activity = [
+      { type: 'user', message: 'New user registered: Rahul Sharma', time: '2 min ago' },
+      { type: 'test', message: 'Test completed: SSC CGL Mock Test', time: '5 min ago' },
+      { type: 'payment', message: 'Payment received: ₹499', time: '10 min ago' },
+    ];
+    res.json(activity);
+  } catch (error) {
+    console.error('Error fetching activity:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get analytics data
+router.get('/analytics', auth, adminController.isAdmin, async (req, res) => {
+  try {
+    // Mock data for charts
+    res.json([
+      { type: 'user', message: 'Weekly activity data', time: 'now' },
+      { type: 'test', message: 'Test performance data', time: 'now' },
+    ]);
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

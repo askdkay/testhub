@@ -1,59 +1,38 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('./config/database');
 
-// 1. Environment variables load karo
 dotenv.config();
-
-// 2. Database se connect karo
-connectDB();
 
 const app = express();
 
-// 3. CORS Configuration (Taki frontend se request block na ho)
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://your-frontend.netlify.app' // Jab deploy karoge tab ye kaam aayega
-];
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Mobile apps ya curl jaise tools ke liye allow karo
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true
-}));
-
-// 4. Middlewares
+// Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 5. Saare Routes (Ensure karna ki ye files routes folder mein hain)
+// Routes - Check karo sab sahi hain
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tests', require('./routes/tests'));
-app.use('/api/admin', require('./routes/admin'));
+app.use('/api/admin', require('./routes/admin'));  // YEH LINE IMPORTANT
 
-// 6. Health check & Root route
+// Test route
 app.get('/', (req, res) => {
     res.json({ message: 'API is working!' });
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ message: 'Route not found' });
 });
 
-// 7. Server Start
-const PORT = process.env.PORT || 5000;
-const mode = process.env.NODE_ENV || 'development';
+// Error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Something broke!', error: err.message });
+});
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running in ${mode} mode on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'; // React Router se Link import kiya
 export default function Breadcrumbs({ paths }) {
   return (
     <nav className="flex mb-4" aria-label="Breadcrumb">
+      <div className=""></div>
       <ol role="list" className="flex items-center space-x-4">
         
         {/* Home Icon */}
@@ -47,6 +48,7 @@ export default function Breadcrumbs({ paths }) {
           );
         })}
       </ol>
+      <br className="sr-only"></br>
     </nav>
   );
 }

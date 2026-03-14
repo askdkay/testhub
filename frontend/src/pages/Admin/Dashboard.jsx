@@ -387,7 +387,8 @@ const loadDashboardData = async () => {
 { icon: FiAward, label: 'Results', id: 'results', count: null, path: '/admin/results' },
 { icon: FiShoppingBag, label: 'Orders', id: 'orders', count: 234, path: '/admin/orders' },
 { icon: FiBell, label: 'Notifications', id: 'notifications', count: notifications.length, path: '/admin/notifications' },
-{ icon: FiSettings, label: 'Settings', id: 'settings', count: null, path: '/admin/settings' }
+{ icon: FiSettings, label: 'Settings', id: 'settings', count: null, path: '/admin/settings' },
+// { icon: FiFileText, label: 'Test Management', id: 'tests', count: stats.totalTests,path: '/admin/testmanagement' }
 ].map((item) => (
   <button
     key={item.id}

@@ -1,9 +1,143 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// Define routes
-router.post('/register', authController.register);
-router.post('/login', authController.login);
+// ✅ DATABASE CONNECTION IMPORT
+const db = require('../config/database');
+
+// Register
+router.post('/register', async (req, res) => {
+    try {
+        const { name, email, password, phone, exam_preparation } = req.body;
+        
+        console.log('Registration attempt:', { name, email, phone, exam_preparation });
+        
+        // Validation
+        if (!name || !email || !password) {
+            return res.status(400).json({ 
+                message: 'Name, email and password are required' 
+            });
+        }
+        
+        // Check if user exists
+        const [existing] = await db.query(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+        
+        if (existing.length > 0) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+        
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Insert user
+        const [result] = await db.query(
+            'INSERT INTO users (name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?)',
+            [name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
+        );
+        
+        console.log('User created with ID:', result.insertId);
+        
+        // Create token
+        const token = jwt.sign(
+            { id: result.insertId, email: email },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        res.json({ 
+            token, 
+            user: { 
+                id: result.insertId, 
+                name, 
+                email,
+                phone,
+                exam_preparation,
+                role: 'student'
+            } 
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ 
+            message: 'Server error', 
+            error: error.message 
+        });
+    }
+});
+
+// Login user
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        console.log('Login attempt:', email);
+        
+        // Check if user exists
+        const [users] = await db.query(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+        
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        
+        const user = users[0];
+        
+        // Compare password
+        let validPassword = false;
+        
+        // Check if password is bcrypt hash ya plain text
+        if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+            validPassword = await bcrypt.compare(password, user.password);
+        } else {
+            // Plain text comparison (temporary for admin)
+            validPassword = (password === user.password);
+        }
+        
+        if (!validPassword) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        
+        // ✅ UPDATE LAST LOGIN
+        try {
+            // Check if last_login column exists
+            const [columns] = await db.query("SHOW COLUMNS FROM users LIKE 'last_login'");
+            if (columns.length > 0) {
+                await db.query(
+                    'UPDATE users SET last_login = NOW() WHERE id = ?',
+                    [user.id]
+                );
+            }
+        } catch (loginErr) {
+            console.log('Last login update skipped:', loginErr.message);
+        }
+        
+        // Create token
+        const token = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        res.json({ 
+            token, 
+            user: { 
+                id: user.id, 
+                name: user.name, 
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                exam_preparation: user.exam_preparation
+            } 
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 module.exports = router;

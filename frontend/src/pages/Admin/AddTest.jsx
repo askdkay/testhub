@@ -81,22 +81,33 @@ function AddTest() {
     }
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      const res = await API.post('/admin/tests', {
-        ...formData,
-        status: 'published'
-      });
-      navigate(`/admin/add-questions/${res.data.testId}`);
+        console.log('Submitting test data:', formData); // DEBUG
+        
+        const res = await API.post('/admin/tests', formData);
+        console.log('Server response:', res.data); // DEBUG
+        
+        navigate(`/admin/add-questions/${res.data.testId}`);
     } catch (error) {
-      console.error('Error creating test:', error);
-      alert('Failed to create test');
+        console.error('Error creating test:', error);
+        console.error('Error response:', error.response?.data); // IMPORTANT
+        
+        // Show specific error message
+        if (error.response?.data?.sql) {
+            alert(`Database Error: ${error.response.data.sql}`);
+        } else if (error.response?.data?.message) {
+            alert(`Error: ${error.response.data.message}`);
+        } else {
+            alert('Failed to create test. Check console for details.');
+        }
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   const handleSaveDraft = async () => {
     setSavingDraft(true);

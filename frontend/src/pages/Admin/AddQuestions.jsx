@@ -186,10 +186,10 @@ function AddQuestions() {
   const handleSaveDraft = async () => {
     setLoading(true);
     try {
-      await API.post('/admin/questions/draft', {
-        testId,
-        questions
-      });
+await API.post('/admin/questions', {
+  testId: testId,  // Make sure it's sending the ID
+  questions: questions  // Make sure it's sending array
+});
       setSaveStatus('saved');
       alert('Draft saved successfully!');
     } catch (error) {
@@ -208,32 +208,53 @@ function AddQuestions() {
     setShowPreview(true);
   };
 
-  const handlePublish = async () => {
-    if (!validateAllQuestions()) {
-      alert('Please fill all required fields before publishing');
-      return;
-    }
+const handlePublish = async () => {
+  if (!validateAllQuestions()) {
+    alert('Please fill all required fields before publishing');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      await API.post('/admin/questions', {
-        testId,
-        questions
-      });
-      
-      // Publish test
-      await API.post(`/admin/tests/${testId}/publish`);
-      
-      setSaveStatus('published');
-      alert('Test published successfully!');
-      navigate('/admin/tests');
-    } catch (error) {
-      console.error('Error publishing test:', error);
-      // alert('Failed to publish test');
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    // Step 1: Save questions
+    console.log('Saving questions for test:', testId);
+    const questionsRes = await API.post('/admin/questions', {
+      testId: testId,  // Make sure testId is sent correctly
+      questions: questions.map(q => ({
+        question_text: q.question_text,
+        question_text_hindi: q.question_text_hindi || '',
+        option_a: q.option_a,
+        option_b: q.option_b,
+        option_c: q.option_c,
+        option_d: q.option_d,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation || '',
+        explanation_hindi: q.explanation_hindi || '',
+        marks: q.marks || 4,
+        difficulty: q.difficulty || 'medium',
+        topic: q.topic || '',
+        image_url: q.image_url || null
+      }))
+    });
+    
+    console.log('Questions saved:', questionsRes.data);
+
+    // Step 2: Publish test
+    const publishRes = await API.post(`/admin/tests/${testId}/publish`);
+    console.log('Test published:', publishRes.data);
+    
+    setSaveStatus('published');
+    alert('Test published successfully!');
+    navigate('/admin/tests');
+    
+  } catch (error) {
+    console.error('Error publishing test:', error);
+    console.error('Error response:', error.response?.data);
+    alert('Failed to publish test: ' + (error.response?.data?.message || error.message));
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getStatusColor = (index) => {
     const q = questions[index];

@@ -387,9 +387,11 @@ function UserAnalytics() {
                     <td className="py-4 px-6 text-sm text-gray-400">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-400">
-                      {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                    </td>
+<td className="py-4 px-6 text-sm text-gray-400">
+  {user.last_login 
+    ? new Date(user.last_login).toLocaleDateString() 
+    : 'Never'}
+</td>
                     <td className="py-4 px-6">
                       <button
                         onClick={() => setSelectedUser(user)}

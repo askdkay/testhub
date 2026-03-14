@@ -20,6 +20,9 @@ import Exams from './pages/Exams';
 import GkCurrentAffairs from './pages/GkCurrentAffairs';
 import UserAnalytics from './pages/Admin/Analytics';
 import FreeTests from "./pages/FFF";
+import TestManagement from './pages/Admin/TestManagement';
+import BulkTestImport from './pages/Admin/BulkTestImport';
+
 
 // Private Route for Logged in users
 function PrivateRoute({ children }) {
@@ -79,7 +82,17 @@ function App() {
 
           {/* Admin Routes */}
           <Route path='/admin/login' element={<AdminLogin />} />
-
+// Admin routes mein yeh add karo:
+<Route path="/admin/tests" element={
+  <AdminRoute>
+    <TestManagement />
+  </AdminRoute>
+} />
+<Route path="/admin/bulk-import" element={
+  <AdminRoute>
+    <BulkTestImport />
+  </AdminRoute>
+} />
   {/* Admin Routes */}
   <Route path='/admin' element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path='/admin' element={<AdminRoute><Dashboard /></AdminRoute>} />
