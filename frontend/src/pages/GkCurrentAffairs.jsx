@@ -10,22 +10,10 @@ import { FaLandmark, FaFlask, FaRupeeSign } from 'react-icons/fa';
 // --- MOCK DATA ---
 const categories = [
   { id: 'daily', name: 'Daily Current Affairs', icon: <FiCalendar />, color: 'from-blue-500 to-cyan-500' },
-  { id: 'monthly', name: 'Monthly Quizzes', icon: <FiBookOpen />, color: 'from-purple-500 to-fuchsia-500' },
-  { id: 'static', name: 'Static GK', icon: <FiGlobe />, color: 'from-green-500 to-emerald-500' },
-  { id: 'polity', name: 'Polity & Governance', icon: <FaLandmark />, color: 'from-orange-500 to-red-500' },
-  { id: 'economy', name: 'Indian Economy', icon: <FaRupeeSign />, color: 'from-yellow-400 to-orange-500' },
-  { id: 'science', name: 'Science & Tech', icon: <FaFlask />, color: 'from-teal-400 to-cyan-500' }
 ];
 
 const mockTests = [
   { id: 1, title: 'Daily Current Affairs - 9 March 2026', category: 'Daily Current Affairs', questions: 15, duration: 15, marks: 30, difficulty: 'Medium', date: 'Today', usersAttempted: '12.5k' },
-  { id: 2, title: 'Daily Current Affairs - 8 March 2026', category: 'Daily Current Affairs', questions: 15, duration: 15, marks: 30, difficulty: 'Easy', date: 'Yesterday', usersAttempted: '18.2k' },
-  { id: 3, title: 'February 2026: Mega Monthly Recap', category: 'Monthly Quizzes', questions: 100, duration: 90, marks: 200, difficulty: 'Hard', date: 'Mar 1, 2026', usersAttempted: '45k' },
-  { id: 4, title: 'Indian Constitution & Articles', category: 'Polity & Governance', questions: 25, duration: 20, marks: 50, difficulty: 'Medium', date: 'Static', usersAttempted: '110k' },
-  { id: 5, title: 'Union Budget 2026-27 Highlights', category: 'Indian Economy', questions: 30, duration: 25, marks: 60, difficulty: 'Hard', date: 'Feb 15, 2026', usersAttempted: '85k' },
-  { id: 6, title: 'Space Missions & ISRO Updates', category: 'Science & Tech', questions: 20, duration: 15, marks: 40, difficulty: 'Medium', date: 'Static', usersAttempted: '34k' },
-  { id: 7, title: 'National Parks & Wildlife Sanctuaries', category: 'Static GK', questions: 25, duration: 20, marks: 50, difficulty: 'Easy', date: 'Static', usersAttempted: '150k' },
-  { id: 8, title: 'Daily Current Affairs - 7 March 2026', category: 'Daily Current Affairs', questions: 15, duration: 15, marks: 30, difficulty: 'Medium', date: '2 days ago', usersAttempted: '15.1k' },
 ];
 
 function GkCurrentAffairs() {

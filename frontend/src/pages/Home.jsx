@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { useInView as useInViewHook } from 'react-intersection-observer';
+import { Link } from 'react-router-dom';
 // import Navbar from '../components/Navbar';
 import {
   FiBookOpen, FiClock, FiAward, FiTrendingUp, FiUsers,
@@ -79,14 +80,14 @@ function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
+            className="text-5xl md:text-7xl lg:text-5xl font-bold mb-6 leading-tight"
           >
             <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              World's Most
+              The Ultimate Platform for 
             </span>
             <br />
             <span className="bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 bg-clip-text text-transparent bg-[length:200%_200%] animate-gradient">
-              Powerful Tests
+              Exam Mastery
             </span>
           </motion.h1>
 
@@ -116,10 +117,6 @@ function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </button>
 
-            <button className="flex items-center px-8 py-4 rounded-full text-lg font-semibold border border-glass-border hover:bg-glass-bg transition-all duration-300 group">
-              <FiPlay className="mr-2 group-hover:scale-110 transition-transform" />
-              Watch Demo
-            </button>
           </motion.div>
 
           {/* Stats */}
@@ -130,10 +127,10 @@ function Home() {
             className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20"
           >
             {[
-              { number: '5L+', label: 'Active Students' },
-              { number: '1000+', label: 'Mock Tests' },
-              { number: '98%', label: 'Success Rate' },
-              { number: '24/7', label: 'Expert Support' }
+{ number: '5000+', label: 'Questions Bank' },
+{ number: '100+', label: 'Full Mock Tests' },
+{ number: '10+', label: 'Exam Categories' },
+{ number: '24/7', label: 'Doubt Support' }
             ].map((stat, index) => (
               <div key={index} className="text-center">
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
@@ -220,7 +217,7 @@ function Home() {
                 { icon: FiClock, title: 'Real Exam Simulation', desc: 'Exact UI, timer & difficulty level as real exams' },
                 { icon: FiAward, title: 'AI-Powered Analysis', desc: 'Get personalized insights & improvement tips' },
                 { icon: FiTrendingUp, title: 'All India Rank', desc: 'Compare your performance with lakhs of students' },
-                { icon: FiUsers, title: 'Expert Guidance', desc: 'Video solutions & doubt clearing by top faculty' },
+                // { icon: FiUsers, title: 'Expert Guidance', desc: 'Video solutions & doubt clearing by top faculty' },
                 { icon: FaShieldAlt, title: 'Anti-Cheating Tech', desc: 'Secure environment with tab-switch detection' }
               ].map((feature, index) => (
                 <motion.div
@@ -256,9 +253,10 @@ function Home() {
 
                 <div className="space-y-6">
                   {[
-                    { number: '98%', label: 'Success Rate in 2024', progress: 98 },
-                    { number: '15,000+', label: 'Government Selections', progress: 85 },
-                    { number: '4.8/5', label: 'App Store Rating', progress: 96 }
+{ number: '100%', label: 'Latest Exam Pattern', progress: 100 },
+{ number: '99.9%', label: 'Question Accuracy', progress: 99 },
+{ number: 'Instant', label: 'AI Performance Report', progress: 95 },
+{ number: 'Top 1%', label: 'Expert-Curated Content', progress: 98 }
                   ].map((stat, index) => (
                     <div key={index}>
                       <div className="flex justify-between mb-2">
@@ -316,30 +314,30 @@ function Home() {
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                What Our <span className="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">Toppers Say</span>
+                What Our <span className="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">Early Learners Say</span>
               </h2>
-              <p className="text-xl text-gray-400">Join 5 lakh+ successful aspirants</p>
+              <p className="text-xl text-gray-400">Join the fast-growing community of serious aspirants</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 {
                   name: 'Priya Sharma',
-                  exam: 'UPSC CSE 2024 (AIR 127)',
+                  exam: 'UPSC CSE Prep',
                   text: 'The mock tests were so close to actual paper. Sectional analysis helped me improve my weak areas.',
                   rating: 5,
                   image: '👩‍🎓'
                 },
                 {
                   name: 'Rahul Verma',
-                  exam: 'SSC CGL 2024 (AIR 45)',
+                  exam: 'SSC CGL Prep',
                   text: 'Daily current affairs quizzes and full-length mocks were game-changer. Got exact pattern questions.',
                   rating: 5,
                   image: '👨‍🎓'
                 },
                 {
                   name: 'Amit Kumar',
-                  exam: 'IBPS PO 2024 (AIR 89)',
+                  exam: 'IBPS PO Prep',
                   text: 'The AI analysis pinpointed my mistakes. Improved from 60 to 95 percentile in just 2 months.',
                   rating: 5,
                   image: '👨‍💼'
@@ -412,39 +410,39 @@ function Home() {
       </RevealSection>
 
       {/* 7. Pricing Plans */}
-      <RevealSection>
+      
         <section className="py-24 px-4 bg-gradient-to-b from-transparent via-orange-500/5 to-transparent">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                Simple <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">Pricing</span>
+                Affordable Plans for Big <span className="bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent"> Dreams</span>
               </h2>
-              <p className="text-xl text-gray-400">Choose the plan that fits your preparation</p>
+              <p className="text-xl text-gray-400">Premium test series at a price that fits your pocket</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
                   name: 'Basic',
-                  price: '499',
-                  period: 'month',
+                  price: '29',
+                  period: 'week',
                   features: ['20 Mock Tests', 'Basic Analysis', 'Topic Tests', 'Email Support'],
                   popular: false,
                   color: 'from-blue-500 to-cyan-500'
                 },
                 {
                   name: 'Pro',
-                  price: '999',
+                  price: '69',
                   period: 'month',
-                  features: ['100+ Mock Tests', 'AI Analysis', 'Video Solutions', '24/7 Support', 'All India Rank'],
+                  features: ['Unlimited Mock Tests', 'Basic Analysis', 'Topic Tests', 'Email Support'],
                   popular: true,
                   color: 'from-orange-500 to-red-500'
                 },
                 {
                   name: 'Premium',
-                  price: '1999',
+                  price: '199',
                   period: '3 months',
-                  features: ['Unlimited Tests', '1-on-1 Mentorship', 'Study Material', 'Priority Support', 'Doubt Sessions'],
+                  features: ['All-Exam Access', 'Basic Analysis', 'Topic Tests', 'Email Support'],
                   popular: false,
                   color: 'from-purple-500 to-pink-500'
                 }
@@ -484,7 +482,7 @@ function Home() {
             </div>
           </div>
         </section>
-      </RevealSection>
+      
 
       {/* 8. Latest Updates */}
       <RevealSection>
@@ -499,10 +497,10 @@ function Home() {
 
                 <div className="space-y-4">
                   {[
-                    { title: 'SSC CGL 2024 Notification Out', date: '2 hours ago', type: 'exam' },
-                    { title: 'New Feature: AI Performance Analysis', date: 'Yesterday', type: 'feature' },
-                    { title: 'UPSC Prelims 2024 Results Announced', date: '3 days ago', type: 'result' },
-                    { title: 'IBPS PO 2024 Application Started', date: '1 week ago', type: 'notification' }
+                    { title: 'New Features In-the-Works', date: 'now', type: 'exam' },
+                    { title: 'New Features In-the-Works', date: 'now', type: 'feature' },
+                    { title: 'New Features In-the-Works', date: 'now', type: 'result' },
+                    { title: 'New Features In-the-Works', date: 'now', type: 'notification' }
                   ].map((update, index) => (
                     <motion.div
                       key={index}
@@ -543,82 +541,7 @@ function Home() {
         </section>
       </RevealSection>
 
-      {/* 9. Mobile App Promotion */}
-      <RevealSection>
-        <section className="py-24 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="backdrop-blur-xl bg-gradient-to-r from-green-500/10 via-blue-500/10 to-purple-500/10 border border-glass-border rounded-3xl p-12 relative overflow-hidden">
-              {/* Background Pattern */}
-              <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
 
-              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div>
-                  <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                    Practice on the <span className="bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">Go</span>
-                  </h2>
-                  <p className="text-xl text-gray-400 mb-8">
-                    Download our mobile app and practice anytime, anywhere.
-                    Available on both Android & iOS.
-                  </p>
-
-                  <div className="flex flex-wrap gap-4">
-                    <button className="flex items-center space-x-3 bg-black/50 backdrop-blur-xl border border-glass-border px-6 py-3 rounded-xl hover:bg-black/70 transition-all">
-                      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17.6 9.6l-4-2.3-3.6 3.6 3.6 3.6 4-2.3c.8-.5.8-1.6 0-2.1zM3 5v14c0 .8.9 1.3 1.6.9l12-7c.8-.5.8-1.6 0-2.1l-12-7c-.7-.4-1.6.1-1.6.9z" />
-                      </svg>
-                      <div className="text-left">
-                        <div className="text-xs">GET IT ON</div>
-                        <div className="text-sm font-bold">Google Play</div>
-                      </div>
-                    </button>
-
-                    <button className="flex items-center space-x-3 bg-black/50 backdrop-blur-xl border border-glass-border px-6 py-3 rounded-xl hover:bg-black/70 transition-all">
-                      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M18.7 12.4c-.1-2.6 1.5-4.8 3.7-6.2-1.4-2-3.5-3.2-5.9-3.2-2.5 0-4.2 1.3-5.3 1.3-1.2 0-3-1.2-5-1.2-3.4 0-6.7 2.6-6.7 7.6 0 2.5.8 5.1 2.3 7.2 1.4 2 3 4.2 5.2 4.2 2 0 3-1.2 5.1-1.2 2.2 0 3.2 1.3 5.2 1.3 2.3 0 4-2.3 5.3-4.4-2.3-1.5-3.7-3.9-3.9-6.4zM15.1 3.9c1.2-1.3 1.8-2.9 1.6-4.5-1.5.1-3.2.8-4.2 2-1.1 1.2-1.8 2.8-1.6 4.4 1.6.1 3.2-.7 4.2-1.9z" />
-                      </svg>
-                      <div className="text-left">
-                        <div className="text-xs">Download on the</div>
-                        <div className="text-sm font-bold">App Store</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <motion.div
-                    animate={{ y: [0, -20, 0] }}
-                    transition={{ duration: 4, repeat: Infinity }}
-                    className="relative z-10"
-                  >
-                    <img
-                      src="https://placehold.co/300x600/1a1a1a/3b82f6?text=App+Preview"
-                      alt="App Preview"
-                      className="w-64 mx-auto rounded-3xl shadow-2xl"
-                    />
-                  </motion.div>
-
-                  {/* Floating Badges */}
-                  <motion.div
-                    animate={{ x: [0, 10, 0], y: [0, -10, 0] }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                    className="absolute top-10 -right-10 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold"
-                  >
-                    4.8 ★
-                  </motion.div>
-
-                  <motion.div
-                    animate={{ x: [0, -10, 0], y: [0, 10, 0] }}
-                    transition={{ duration: 4, repeat: Infinity }}
-                    className="absolute bottom-10 -left-10 bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-full text-sm font-bold"
-                  >
-                    1M+ Downloads
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </RevealSection>
 
       {/* 10. Comprehensive Footer */}
       <footer className="border-t border-glass-border pt-16 pb-8 px-4 mt-24">
@@ -633,8 +556,7 @@ function Home() {
                 <span className="text-xl font-bold">TestSeries</span>
               </div>
               <p className="text-gray-400 mb-4">
-                India's most trusted test series platform for competitive exams.
-                Empowering 5 lakh+ aspirants since 2020.
+                India's most precise test series platform for competitive exams. Dedicated to empowering the next generation of toppers.
               </p>
               <div className="flex space-x-4">
                 {[FiFacebook, FiTwitter, FiInstagram, FiYoutube].map((Icon, index) => (
@@ -648,16 +570,26 @@ function Home() {
             {/* Quick Links */}
             <div>
               <h4 className="text-lg font-bold mb-6">Quick Links</h4>
-              <ul className="space-y-3">
-                {['About Us', 'Contact Us', 'Terms & Conditions', 'Privacy Policy', 'Refund Policy', 'FAQ'].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-gray-400 hover:text-green-400 transition-colors flex items-center">
-                      <FiChevronRight className="mr-2 text-xs" />
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+<ul className="space-y-3">
+  {[
+    { name: 'About Us', path: '/about' },
+    { name: 'Contact Us', path: '/contact' },
+    { name: 'Terms & Conditions', path: '/terms' },
+    { name: 'Privacy Policy', path: '/privacy' },
+    { name: 'Refund Policy', path: '/refund' },
+    { name: 'FAQ', path: '/faq' }
+  ].map((item, index) => (
+    <li key={index}>
+      <Link 
+        to={item.path} 
+        className="text-gray-400 hover:text-green-400 transition-colors flex items-center"
+      >
+        <FiChevronRight className="mr-2 text-xs" />
+        {item.name}
+      </Link>
+    </li>
+  ))}
+</ul>
             </div>
 
             {/* Exam Categories */}

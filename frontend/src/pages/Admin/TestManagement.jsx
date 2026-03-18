@@ -6,16 +6,17 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import { 
   FiFileText, FiEdit2, FiTrash2, FiEye, FiPlus,
   FiSearch, FiChevronDown, FiX, FiClock,
-  FiAlertCircle, FiBarChart2, FiCopy, FiSave, FiCheck
+  FiAlertCircle, FiBarChart2, FiCopy, FiSave
 } from 'react-icons/fi';
 import { 
-  FaRupeeSign, FaGraduationCap, FaRegFileAlt, FaCheckCircle
+  FaGraduationCap, FaRegFileAlt, FaCheckCircle
 } from 'react-icons/fa';
 
 function TestManagement() {
   const navigate = useNavigate();
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [exams, setExams] = useState([]); // New state for exams
   const [loading, setLoading] = useState(true);
   
   // States for Filtering & Dropdown
@@ -27,8 +28,6 @@ function TestManagement() {
   const [editingTest, setEditingTest] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [testToDelete, setTestToDelete] = useState(null);
-  const [showQuestionModal, setShowQuestionModal] = useState(false);
-  const [selectedTestQuestions, setSelectedTestQuestions] = useState([]);
   
   // Stats
   const [stats, setStats] = useState({
@@ -38,19 +37,42 @@ function TestManagement() {
     publishedTests: 0,
     draftTests: 0
   });
+
   const breadcrumbPaths = [
     { name: 'Admin Dashboard', href: '/admin' },
-    // { name: 'Users', href: '/admin/users' },
-    { name: 'Tests', href: '/admin/users/tests' } // Ye current page hai, automatically blue aur unclickable ho jayega
+    { name: 'Tests', href: '/admin/users/tests' } 
   ];
+
   useEffect(() => {
-    fetchTests();
-    fetchCategories();
+    // Fetch all required data simultaneously
+    const initData = async () => {
+      setLoading(true);
+      await Promise.all([fetchCategories(), fetchExams()]);
+      await fetchTests(); // Fetch tests after categories/exams so we can map them
+    };
+    initData();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await API.get('/exams/categories'); // Note: Updated to match your AddTest API
+      setCategories(res.data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchExams = async () => {
+    try {
+      const res = await API.get('/exams/admin/exams-list'); // Note: Updated to match your AddTest API
+      setExams(res.data);
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    }
+  };
 
   const fetchTests = async () => {
     try {
-      setLoading(true);
       const res = await API.get('/admin/tests');
       const testsData = res.data;
       setTests(testsData);
@@ -61,7 +83,9 @@ function TestManagement() {
       let drafts = 0;
 
       testsData.forEach(test => {
-        categoryWise[test.category] = (categoryWise[test.category] || 0) + 1;
+        // Fallback to category_id if category string is not available
+        const catId = test.category_id || test.category; 
+        categoryWise[catId] = (categoryWise[catId] || 0) + 1;
         totalQuestions += test.total_questions || 0;
         if (test.status === 'published') published++;
         else if (test.status === 'draft') drafts++;
@@ -82,25 +106,6 @@ function TestManagement() {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const res = await API.get('/admin/test-categories');
-      setCategories(res.data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchTestQuestions = async (testId) => {
-    try {
-      const res = await API.get(`/admin/tests/${testId}/questions`);
-      setSelectedTestQuestions(res.data);
-      setShowQuestionModal(true);
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-    }
-  };
-
   const handleDeleteTest = async () => {
     try {
       await API.delete(`/admin/tests/${testToDelete.id}`);
@@ -116,7 +121,6 @@ function TestManagement() {
   const handleUpdateTest = async () => {
     try {
       await API.put(`/admin/tests/${editingTest.id}`, editingTest);
-      setTests(tests.map(t => t.id === editingTest.id ? editingTest : t));
       setEditingTest(null);
       fetchTests(); 
     } catch (error) {
@@ -136,10 +140,21 @@ function TestManagement() {
     }
   };
 
-  // Filter tests for the single table view
+  // Helper functions to get names from IDs
+  const getCategoryName = (id) => {
+    const cat = categories.find(c => String(c.id) === String(id));
+    return cat ? cat.name : (id || 'N/A');
+  };
+
+  const getExamName = (id) => {
+    const exam = exams.find(e => String(e.id) === String(id));
+    return exam ? exam.name : (id || 'N/A');
+  };
+
+  // Filter tests
   const filteredTests = tests.filter(test => {
-    const matchesCategory = selectedCategory === 'all' || test.category === selectedCategory;
-    const matchesSearch = test.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesCategory = selectedCategory === 'all' || String(test.category_id) === String(selectedCategory);
+    const matchesSearch = test.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          test.description?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -157,12 +172,10 @@ function TestManagement() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-indigo-500/30">
-      
-      {/* Main Content */}
-      <div className="ml-0  min-h-screen p-6">
+      <div className="ml-0 min-h-screen p-6">
         <div className="max-w-7xl mx-auto space-y-8">
           <Breadcrumbs paths={breadcrumbPaths} />
-          {/* Header */}
+          
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-2xl md:text-3xl font-semibold text-slate-50 mb-1">
               Test Management
@@ -180,7 +193,7 @@ function TestManagement() {
               { label: 'Questions', val: stats.totalQuestions, icon: FaGraduationCap, color: 'text-indigo-400', bg: 'bg-indigo-400/10' },
               { label: 'Published', val: stats.publishedTests, icon: FaCheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
               { label: 'Drafts', val: stats.draftTests, icon: FaRegFileAlt, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-              { label: 'Categories', val: Object.keys(stats.categoryWise).length, icon: FiBarChart2, color: 'text-purple-400', bg: 'bg-purple-400/10' }
+              { label: 'Categories', val: categories.length, icon: FiBarChart2, color: 'text-purple-400', bg: 'bg-purple-400/10' }
             ].map((stat, i) => (
               <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
                 <div>
@@ -196,9 +209,7 @@ function TestManagement() {
 
           {/* Search, Filter & Actions Bar */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-800">
-            
             <div className="flex flex-1 gap-4 w-full">
-              {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -217,7 +228,7 @@ function TestManagement() {
                   className="w-full flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg py-2 px-4 text-sm text-slate-200 hover:border-slate-700 transition-all"
                 >
                   <span className="truncate">
-                    {selectedCategory === 'all' ? 'All Categories' : selectedCategory}
+                    {selectedCategory === 'all' ? 'All Categories' : getCategoryName(selectedCategory)}
                   </span>
                   <FiChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -235,16 +246,13 @@ function TestManagement() {
                         >
                           All Categories
                         </button>
-                        {Object.keys(stats.categoryWise).map(cat => (
+                        {categories.map(cat => (
                           <button
-                            key={cat}
-                            onClick={() => { setSelectedCategory(cat); setIsDropdownOpen(false); }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex justify-between items-center ${selectedCategory === cat ? 'text-indigo-400 bg-slate-800/50' : 'text-slate-300'}`}
+                            key={cat.id}
+                            onClick={() => { setSelectedCategory(cat.id); setIsDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-800 transition-colors flex justify-between items-center ${String(selectedCategory) === String(cat.id) ? 'text-indigo-400 bg-slate-800/50' : 'text-slate-300'}`}
                           >
-                            <span>{cat}</span>
-                            <span className="text-xs text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full">
-                              {stats.categoryWise[cat]}
-                            </span>
+                            <span>{cat.name}</span>
                           </button>
                         ))}
                       </div>
@@ -254,7 +262,6 @@ function TestManagement() {
               </div>
             </div>
 
-            {/* Add Button */}
             <button
               onClick={() => navigate('/admin/add-test')}
               className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
@@ -264,7 +271,7 @@ function TestManagement() {
             </button>
           </div>
 
-          {/* Single Unified Table */}
+          {/* Unified Table */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
@@ -272,6 +279,7 @@ function TestManagement() {
                   <tr>
                     <th className="py-3 px-4 font-medium text-slate-400">Test Title</th>
                     <th className="py-3 px-4 font-medium text-slate-400">Category</th>
+                    <th className="py-3 px-4 font-medium text-slate-400">Exam</th>
                     <th className="py-3 px-4 font-medium text-slate-400">Duration</th>
                     <th className="py-3 px-4 font-medium text-slate-400">Questions</th>
                     <th className="py-3 px-4 font-medium text-slate-400">Status</th>
@@ -281,7 +289,7 @@ function TestManagement() {
                 <tbody className="divide-y divide-slate-800/50">
                   {filteredTests.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-500">
+                      <td colSpan="7" className="py-8 text-center text-slate-500">
                         No tests found matching your criteria.
                       </td>
                     </tr>
@@ -294,7 +302,12 @@ function TestManagement() {
                         </td>
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-800 text-slate-300 text-xs">
-                            {test.category}
+                            {getCategoryName(test.category_id)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-800 text-indigo-300 text-xs border border-indigo-500/20">
+                            {getExamName(test.exam_id)}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-slate-400">
@@ -316,10 +329,10 @@ function TestManagement() {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => fetchTestQuestions(test.id)} className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-md transition-colors" title="View">
+                            <button onClick={() => navigate(`/admin/add-questions/${test.id}`)} className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-md transition-colors" title="Add/View Questions">
                               <FiEye size={16} />
                             </button>
-                            <button onClick={() => setEditingTest(test)} className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors" title="Edit">
+                            <button onClick={() => setEditingTest(test)} className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors" title="Edit Info">
                               <FiEdit2 size={16} />
                             </button>
                             <button onClick={() => handleDuplicateTest(test)} className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors" title="Duplicate">
@@ -338,7 +351,7 @@ function TestManagement() {
             </div>
           </div>
 
-          {/* Edit Test Modal (Tailwind UI Style) */}
+          {/* Edit Test Modal */}
           <AnimatePresence>
             {editingTest && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
@@ -359,7 +372,7 @@ function TestManagement() {
                       <input
                         type="text" value={editingTest.title}
                         onChange={(e) => setEditingTest({...editingTest, title: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
@@ -367,19 +380,31 @@ function TestManagement() {
                       <textarea
                         rows="3" value={editingTest.description}
                         onChange={(e) => setEditingTest({...editingTest, description: e.target.value})}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1.5">Category</label>
                         <select
-                          value={editingTest.category}
-                          onChange={(e) => setEditingTest({...editingTest, category: e.target.value})}
+                          value={editingTest.category_id}
+                          onChange={(e) => setEditingTest({...editingTest, category_id: e.target.value})}
                           className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
                         >
-                          {Object.keys(stats.categoryWise).map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
+                          {categories.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Exam</label>
+                        <select
+                          value={editingTest.exam_id}
+                          onChange={(e) => setEditingTest({...editingTest, exam_id: e.target.value})}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                        >
+                          {exams.filter(ex => String(ex.category_id) === String(editingTest.category_id)).map(exam => (
+                            <option key={exam.id} value={exam.id}>{exam.name}</option>
                           ))}
                         </select>
                       </div>

@@ -33,7 +33,7 @@ function ContentManagement() {
   const [jsonPreview, setJsonPreview] = useState(null);
   const [multipleFiles, setMultipleFiles] = useState([]);
   const [multiplePreviews, setMultiplePreviews] = useState([]);
-// const [fileProgress, setFileProgress] = useState({});
+  // const [fileProgress, setFileProgress] = useState({});
 
 
   useEffect(() => {
@@ -180,50 +180,50 @@ function ContentManagement() {
   };
 
   // Multiple files import handler
- // Better progress tracking
-const [fileProgress, setFileProgress] = useState({});
+  // Better progress tracking
+  const [fileProgress, setFileProgress] = useState({});
 
-const handleMultipleImport = async () => {
+  const handleMultipleImport = async () => {
     if (multipleFiles.length === 0) return;
 
     const formData = new FormData();
     multipleFiles.forEach(file => {
-        formData.append('files', file);
-        setFileProgress(prev => ({ ...prev, [file.name]: 'pending' }));
+      formData.append('files', file);
+      setFileProgress(prev => ({ ...prev, [file.name]: 'pending' }));
     });
 
     try {
-        const res = await API.post('/content/admin/import-multiple', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-                const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                setImportProgress(percent);
-            }
-        });
+      const res = await API.post('/content/admin/import-multiple', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setImportProgress(percent);
+        }
+      });
 
-        // Update individual file status
-        const newProgress = {};
-        res.data.results.forEach(r => {
-            newProgress[r.file] = 'success';
-        });
-        res.data.errors.forEach(e => {
-            newProgress[e.file] = 'error';
-        });
-        setFileProgress(newProgress);
+      // Update individual file status
+      const newProgress = {};
+      res.data.results.forEach(r => {
+        newProgress[r.file] = 'success';
+      });
+      res.data.errors.forEach(e => {
+        newProgress[e.file] = 'error';
+      });
+      setFileProgress(newProgress);
 
-        // Show detailed results
-        setTimeout(() => {
-            alert(
-                `✅ Success: ${res.data.results.length}\n` +
-                `❌ Failed: ${res.data.errors.length}\n\n` +
-                res.data.errors.map(e => `${e.file}: ${e.error}`).join('\n')
-            );
-        }, 1000);
+      // Show detailed results
+      setTimeout(() => {
+        alert(
+          `✅ Success: ${res.data.results.length}\n` +
+          `❌ Failed: ${res.data.errors.length}\n\n` +
+          res.data.errors.map(e => `${e.file}: ${e.error}`).join('\n')
+        );
+      }, 1000);
 
     } catch (error) {
-        console.error('Error:', error);
+      console.error('Error:', error);
     }
-};
+  };
 
   // Clear selection
   const clearSelection = () => {
@@ -243,7 +243,7 @@ const handleMultipleImport = async () => {
       <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-10" />
 
       {/* Main Content */}
-      <div className="relative ml-0 lg:ml-64 min-h-screen p-6">
+      <div className="relative ml-0 lg:ml- min-h-screen p-6">
         <div className="max-w-7xl mx-auto">
 
           {/* Header */}
@@ -389,21 +389,21 @@ const handleMultipleImport = async () => {
                         </div>
                       </td>
                       {/* In the table, after Title column */}
-<td className="py-4 px-6">
-  <div>
-    <p className="font-medium flex items-center gap-2">
-      {content.level === 2 && (
-        <span className="text-gray-400">└─</span>
-      )}
-      {content.title}
-    </p>
-    {content.parent_title && (
-      <p className="text-xs text-gray-400">
-        Parent: {content.parent_title}
-      </p>
-    )}
-  </div>
-</td>
+                      <td className="py-4 px-6">
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {content.level === 2 && (
+                              <span className="text-gray-400">└─</span>
+                            )}
+                            {content.title}
+                          </p>
+                          {content.parent_title && (
+                            <p className="text-xs text-gray-400">
+                              Parent: {content.parent_title}
+                            </p>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-4 px-6">
                         <span className="text-sm">{content.exam_name || 'N/A'}</span>
                       </td>
@@ -531,27 +531,27 @@ const handleMultipleImport = async () => {
                     </label>
                   </div>
                   {/* JSON Preview */}
-{/* Multiple Files Preview */}
-{multiplePreviews.length > 0 && (
-  <div className="mt-4">
-    <h3 className="font-semibold mb-2">Selected Files ({multiplePreviews.length})</h3>
-    <div className="max-h-60 overflow-y-auto space-y-2">
-      {multiplePreviews.map((preview, index) => (
-        <div key={index} className="p-3 bg-black/30 rounded-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-sm">{preview.name}</p>
-              <p className="text-xs text-gray-400">{preview.size}</p>
-            </div>
-            <span className="text-xs text-green-400">
-              {preview.data.title || 'Untitled'}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+                  {/* Multiple Files Preview */}
+                  {multiplePreviews.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="font-semibold mb-2">Selected Files ({multiplePreviews.length})</h3>
+                      <div className="max-h-60 overflow-y-auto space-y-2">
+                        {multiplePreviews.map((preview, index) => (
+                          <div key={index} className="p-3 bg-black/30 rounded-xl">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-sm">{preview.name}</p>
+                                <p className="text-xs text-gray-400">{preview.size}</p>
+                              </div>
+                              <span className="text-xs text-green-400">
+                                {preview.data.title || 'Untitled'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Progress Bar */}
                   {importProgress > 0 && (
                     <div className="mt-4">
@@ -569,34 +569,34 @@ const handleMultipleImport = async () => {
                   )}
 
                   {/* Action Buttons */}
-<div className="flex justify-end gap-3 mt-6">
-  <button
-    onClick={() => {
-      setShowImportModal(false);
-      clearSelection();
-    }}
-    className="px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-red-500/50 transition-all"
-  >
-    Cancel
-  </button>
-  
-  {multipleFiles.length > 0 && (
-    <button
-      onClick={clearSelection}
-      className="px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-yellow-500/50 transition-all"
-    >
-      Clear All
-    </button>
-  )}
-  
-  <button
-    onClick={handleMultipleImport}
-    disabled={multipleFiles.length === 0 || importProgress > 0}
-    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg disabled:opacity-50"
-  >
-    Import {multipleFiles.length} File{multipleFiles.length !== 1 ? 's' : ''}
-  </button>
-</div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowImportModal(false);
+                        clearSelection();
+                      }}
+                      className="px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-red-500/50 transition-all"
+                    >
+                      Cancel
+                    </button>
+
+                    {multipleFiles.length > 0 && (
+                      <button
+                        onClick={clearSelection}
+                        className="px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-yellow-500/50 transition-all"
+                      >
+                        Clear All
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleMultipleImport}
+                      disabled={multipleFiles.length === 0 || importProgress > 0}
+                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg disabled:opacity-50"
+                    >
+                      Import {multipleFiles.length} File{multipleFiles.length !== 1 ? 's' : ''}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -608,7 +608,7 @@ const handleMultipleImport = async () => {
       <AnimatePresence>
         {showEditor && (
           <ContentEditor
-          contents={contents}
+            contents={contents}
             content={editingContent}
             exams={exams}
             onClose={() => {

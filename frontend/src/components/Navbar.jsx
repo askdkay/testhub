@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FiBookOpen, FiChevronDown, FiMenu, FiX, 
+import {
+  FiBookOpen, FiChevronDown, FiMenu, FiX,
   FiUser, FiSettings, FiLogOut, FiBell,
   FiHelpCircle, FiAward
 } from 'react-icons/fi';
@@ -52,11 +52,10 @@ function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300 ${
-          scrolled ? 'top-4' : 'top-6'
-        }`}
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl transition-all duration-300 ${scrolled ? 'top-4' : 'top-6'
+          }`}
       >
-        <div className="backdrop-blur-xl bg-black/40 border border-white/10 rounded-full px-4 md:px-6 py-2 md:py-3 shadow-2xl">
+        <div className="backdrop-blur-sm bg-black/10 border-2 border-white/10 rounded-xl px-4 md:px-6 py-2 md:py-3 shadow-2xl">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
@@ -173,17 +172,17 @@ function Navbar() {
                             <FiSettings className="text-blue-400" />
                             <span>Settings</span>
                           </button>
-{/* Admin Panel - Mobile */}
-{user.role === 'admin' && (
-  <Link
-    to="/admin"
-    className="flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-2"
-    onClick={() => setIsOpen(false)}
-  >
-    <FiAward className="text-purple-400" />
-    <span>Admin Panel</span>
-  </Link>
-)}
+                          {/* Admin Panel - Mobile */}
+                          {user.role === 'admin' && (
+                            <Link
+                              to="/admin"
+                              className="flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-2"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <FiAward className="text-purple-400" />
+                              <span>Admin Panel</span>
+                            </Link>
+                          )}
                           <button
                             onClick={() => {
                               navigate('/my-exams');

@@ -11,13 +11,6 @@ const categories = ['All', 'SSC', 'Banking', 'UPSC', 'Railways', 'Teaching', 'De
 
 const freeTests = [
   { id: 1, title: 'SSC CGL Tier-1 Full Mock Test', category: 'SSC', questions: 100, duration: 60, marks: 200, users: '45.2k', difficulty: 'Medium' },
-  { id: 2, title: 'SBI Clerk Prelims Memory Based', category: 'Banking', questions: 100, duration: 60, marks: 100, users: '32k', difficulty: 'Easy' },
-  { id: 3, title: 'UPSC CSE Prelims GS Paper 1', category: 'UPSC', questions: 100, duration: 120, marks: 200, users: '18.5k', difficulty: 'Hard' },
-  { id: 4, title: 'RRB NTPC CBT-1 Mega Mock', category: 'Railways', questions: 100, duration: 90, marks: 100, users: '55k', difficulty: 'Medium' },
-  { id: 5, title: 'CTET Paper 1 (Primary Level)', category: 'Teaching', questions: 150, duration: 150, marks: 150, users: '22k', difficulty: 'Easy' },
-  { id: 6, title: 'NDA Mathematics Full Test', category: 'Defence', questions: 120, duration: 150, marks: 300, users: '12k', difficulty: 'Hard' },
-  { id: 7, title: 'UP Police Constable Mock Test', category: 'State Exams', questions: 150, duration: 120, marks: 300, users: '80k', difficulty: 'Medium' },
-  { id: 8, title: 'IBPS PO Prelims Free Mock', category: 'Banking', questions: 100, duration: 60, marks: 100, users: '41k', difficulty: 'Hard' },
 ];
 
 export default function FreeTests() {
@@ -35,7 +28,7 @@ export default function FreeTests() {
     <div className="min-h-screen bg-gray-950 text-gray-200 font-sans selection:bg-emerald-500/30 pb-20">
       
       {/* Hero Section */}
-      <div className="relative pt-16 pb-16 overflow-hidden border-b border-gray-800/80 bg-gradient-to-b from-emerald-900/20 to-gray-950">
+      <div className="relative pt-36 pb-16 overflow-hidden border-b border-gray-800/80 bg-gradient-to-b from-emerald-900/20 to-gray-950">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
