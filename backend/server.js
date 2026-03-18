@@ -24,6 +24,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/exams', examCategoryRoutes);// New route for exams categories
 app.use('/api/examDetails', require('./routes/examDetails'));
+app.use('/api/ai-generator', require('./routes/aiGenerator'));
+
 
 // Test route
 app.get('/', (req, res) => {

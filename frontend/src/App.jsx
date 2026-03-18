@@ -41,6 +41,9 @@ import ExamDetailsManager from './pages/Admin/ExamDetailsManager';
 import ExamPagesManager from './pages/Admin/ExamPagesManager';
 import ExamPageEditor from './pages/Admin/ExamPageEditor';
 import ExamDetailPage from './pages/Exams/ExamDetailPage';
+import AITestGenerator from './pages/Admin/AITestGenerator';
+
+
 
 // Private Route for Logged in users
 function PrivateRoute({ children }) {
@@ -261,6 +264,11 @@ function App() {
 <Route path="/admin/edit-exam-page/:examId" element={
   <AdminRoute>
     <ExamPageEditor />
+  </AdminRoute>
+} />
+<Route path="/admin/ai-test-generator" element={
+  <AdminRoute>
+    <AITestGenerator />
   </AdminRoute>
 } />
         </Routes>
