@@ -2,42 +2,58 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const app = express();
-const authRoutes = require('./routes/auth');
-const testRoutes = require('./routes/tests');
-const adminRoutes = require('./routes/admin');
-const contentRoutes = require('./routes/content');
-const blogRoutes = require('./routes/blogs');
-const examCategoryRoutes = require('./routes/examCategories');
+
+// Sabse pehle environment variables load karein
 dotenv.config();
 
+const app = express();
 
-// Middleware
-app.use(cors());
+// ✅ FIXED CORS for production
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/api/content', require('./routes/content'));
-app.use('/api/blogs', require('./routes/blogs'));     
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/tests', require('./routes/tests'));
-app.use('/api/admin', require('./routes/admin'));  
+
+// Serve static files (agar koi image/pdf wagarah upload ho rahi hai)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/api/exams', examCategoryRoutes);// New route for exams categories
-app.use('/api/examDetails', require('./routes/examDetails'));
-app.use('/api/ai-generator', require('./routes/aiGenerator'));
 
-
-// Test route
-app.get('/', (req, res) => {
-    res.json({ message: 'API is working!' });
+// Health check endpoint (Server live hai ya nahi check karne ke liye)
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date(),
+        env: process.env.NODE_ENV 
+    });
 });
 
-// 404 handler
+// Root route
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Test Series API is running',
+        environment: process.env.NODE_ENV,
+        frontend: process.env.FRONTEND_URL || 'Not configured'
+    });
+});
+
+// API Routes (Dono files ke saare routes yahan mila diye gaye hain)
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/tests', require('./routes/tests'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/content', require('./routes/content')); // Purani file se add kiya gaya
+app.use('/api/exams', require('./routes/examCategories'));
+app.use('/api/examDetails', require('./routes/examDetails'));
+app.use('/api/blogs', require('./routes/blogs'));
+app.use('/api/ai-generator', require('./routes/aiGenerator'));
+
+// 404 handler (Agar koi aisi API call kare jo hai hi nahi)
 app.use((req, res) => {
     res.status(404).json({ message: 'Route not found' });
 });
 
-// Error handler
+// Global Error handler (Agar code mein koi issue aaye toh server crash na ho)
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something broke!', error: err.message });
@@ -45,11 +61,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log('Registered routes:');
-    console.log('- /api/auth');
-    console.log('- /api/tests');
-    console.log('- /api/admin');
-    console.log('- /api/content');
-    console.log('- /api/blogs');
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL}`);
 });
