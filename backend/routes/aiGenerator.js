@@ -52,22 +52,27 @@ router.get('/exams', auth, adminController.isAdmin, async (req, res) => {
 // Get generation history
 router.get('/history', auth, adminController.isAdmin, async (req, res) => {
     try {
-        const [history] = await db.query(
-            `SELECT p.*, 
-                    ec.name as category_name,
-                    e.name as exam_name,
-                    u.name as admin_name,
-                    COUNT(q.id) as total_generated,
-                    SUM(CASE WHEN q.is_approved = 1 THEN 1 ELSE 0 END) as approved_count
-             FROM ai_generation_prompts p
-             LEFT JOIN exam_categories ec ON p.category_id = ec.id
-             LEFT JOIN exams e ON p.exam_id = e.id
-             JOIN users u ON p.admin_id = u.id
-             LEFT JOIN ai_generated_questions q ON p.id = q.prompt_id
-             GROUP BY p.id
-             ORDER BY p.created_at DESC
-             LIMIT 50`
-        );
+const [history] = await db.query(
+    `SELECT p.id, p.prompt_text, p.question_type, p.difficulty, p.num_questions,
+            p.status, p.created_at, p.admin_id, p.category_id, p.exam_id,
+            p.generated_count, p.accepted_count, p.test_id,
+            ec.name as category_name,
+            e.name as exam_name,
+            u.name as admin_name,
+            COUNT(q.id) as total_generated,
+            SUM(CASE WHEN q.is_approved = 1 THEN 1 ELSE 0 END) as approved_count
+     FROM ai_generation_prompts p
+     LEFT JOIN exam_categories ec ON p.category_id = ec.id
+     LEFT JOIN exams e ON p.exam_id = e.id
+     JOIN users u ON p.admin_id = u.id
+     LEFT JOIN ai_generated_questions q ON p.id = q.prompt_id
+     GROUP BY p.id, p.prompt_text, p.question_type, p.difficulty, p.num_questions,
+              p.status, p.created_at, p.admin_id, p.category_id, p.exam_id,
+              p.generated_count, p.accepted_count, p.test_id,
+              ec.name, e.name, u.name
+     ORDER BY p.created_at DESC
+     LIMIT 50`
+);
         res.json(history);
     } catch (error) {
         console.error('Error fetching history:', error);
