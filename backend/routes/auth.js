@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+// Get next ID (TiDB doesn't support AUTO_INCREMENT)
+const [rows] = await db.query('SELECT MAX(id) as maxId FROM users');
+const newId = (rows[0].maxId || 0) + 1;
 // ✅ DATABASE CONNECTION IMPORT
 const db = require('../config/database');
-const [[maxRow]] = await db.query('SELECT COALESCE(MAX(id), 0) + 1 AS newId FROM users');
-const newId = maxRow.newId;
+
 // Register
 router.post('/register', async (req, res) => {
     try {
@@ -14,8 +15,7 @@ router.post('/register', async (req, res) => {
         
         console.log('Registration attempt:', { name, email, phone, exam_preparation });
         
-        // Validationconst [[maxRow]] = await db.query('SELECT COALESCE(MAX(id), 0) + 1 AS newId FROM users');
-const newId = maxRow.newId;
+        // Validation
         if (!name || !email || !password) {
             return res.status(400).json({ 
                 message: 'Name, email and password are required' 
@@ -36,12 +36,12 @@ const newId = maxRow.newId;
         const hashedPassword = await bcrypt.hash(password, 10);
         
         // Insert user
-        const [result] = await db.query(
+const [result] = await db.query(
     'INSERT INTO users (id, name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [newId, name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
 );
-
 result.insertId = newId; // token ke liye
+
         
         console.log('User created with ID:', result.insertId);
         
