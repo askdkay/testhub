@@ -5,7 +5,8 @@ const jwt = require('jsonwebtoken');
 
 // ✅ DATABASE CONNECTION IMPORT
 const db = require('../config/database');
-
+const [[maxRow]] = await db.query('SELECT COALESCE(MAX(id), 0) + 1 AS newId FROM users');
+const newId = maxRow.newId;
 // Register
 router.post('/register', async (req, res) => {
     try {
@@ -13,7 +14,8 @@ router.post('/register', async (req, res) => {
         
         console.log('Registration attempt:', { name, email, phone, exam_preparation });
         
-        // Validation
+        // Validationconst [[maxRow]] = await db.query('SELECT COALESCE(MAX(id), 0) + 1 AS newId FROM users');
+const newId = maxRow.newId;
         if (!name || !email || !password) {
             return res.status(400).json({ 
                 message: 'Name, email and password are required' 
@@ -35,9 +37,11 @@ router.post('/register', async (req, res) => {
         
         // Insert user
         const [result] = await db.query(
-            'INSERT INTO users (name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
-        );
+    'INSERT INTO users (id, name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [newId, name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
+);
+
+result.insertId = newId; // token ke liye
         
         console.log('User created with ID:', result.insertId);
         
