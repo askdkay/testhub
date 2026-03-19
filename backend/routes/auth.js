@@ -2,10 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// Get next ID (TiDB doesn't support AUTO_INCREMENT)
-const [rows] = await db.query('SELECT MAX(id) as maxId FROM users');
-const newId = (rows[0].maxId || 0) + 1;
-// ✅ DATABASE CONNECTION IMPORT
+
 const db = require('../config/database');
 
 // Register
@@ -15,14 +12,12 @@ router.post('/register', async (req, res) => {
         
         console.log('Registration attempt:', { name, email, phone, exam_preparation });
         
-        // Validation
         if (!name || !email || !password) {
             return res.status(400).json({ 
                 message: 'Name, email and password are required' 
             });
         }
         
-        // Check if user exists
         const [existing] = await db.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
@@ -32,22 +27,21 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'User already exists' });
         }
         
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // Insert user
-const [result] = await db.query(
-    'INSERT INTO users (id, name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [newId, name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
-);
-result.insertId = newId; // token ke liye
-
+        // ✅ ID manually generate kar rahe hain (TiDB AUTO_INCREMENT support nahi karta)
+        const [rows] = await db.query('SELECT MAX(id) as maxId FROM users');
+        const newId = (rows[0].maxId || 0) + 1;
         
-        console.log('User created with ID:', result.insertId);
+        const [result] = await db.query(
+            'INSERT INTO users (id, name, email, password, phone, exam_preparation, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [newId, name, email, hashedPassword, phone || null, exam_preparation || null, 'student']
+        );
         
-        // Create token
+        console.log('User created with ID:', newId);
+        
         const token = jwt.sign(
-            { id: result.insertId, email: email },
+            { id: newId, email: email },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -55,7 +49,7 @@ result.insertId = newId; // token ke liye
         res.json({ 
             token, 
             user: { 
-                id: result.insertId, 
+                id: newId, 
                 name, 
                 email,
                 phone,
@@ -72,14 +66,13 @@ result.insertId = newId; // token ke liye
     }
 });
 
-// Login user
+// Login
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
         console.log('Login attempt:', email);
         
-        // Check if user exists
         const [users] = await db.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
@@ -91,14 +84,11 @@ router.post('/login', async (req, res) => {
         
         const user = users[0];
         
-        // Compare password
         let validPassword = false;
         
-        // Check if password is bcrypt hash ya plain text
         if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
             validPassword = await bcrypt.compare(password, user.password);
         } else {
-            // Plain text comparison (temporary for admin)
             validPassword = (password === user.password);
         }
         
@@ -106,9 +96,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         
-        // ✅ UPDATE LAST LOGIN
         try {
-            // Check if last_login column exists
             const [columns] = await db.query("SHOW COLUMNS FROM users LIKE 'last_login'");
             if (columns.length > 0) {
                 await db.query(
@@ -120,7 +108,6 @@ router.post('/login', async (req, res) => {
             console.log('Last login update skipped:', loginErr.message);
         }
         
-        // Create token
         const token = jwt.sign(
             { id: user.id, email: user.email },
             process.env.JWT_SECRET,
