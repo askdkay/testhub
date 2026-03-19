@@ -90,7 +90,7 @@ router.get('/generated/:promptId', auth, adminController.isAdmin, async (req, re
 });
 
 // ============================================
-// GENERATE ROUTE - WITH ALL FUNCTIONS DEFINED
+// GENERATE ROUTE
 // ============================================
 
 router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
@@ -106,7 +106,6 @@ router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
             num_questions = 10
         } = req.body;
 
-        // Validation
         if (!prompt) {
             return res.status(400).json({ message: 'Prompt is required' });
         }
@@ -131,15 +130,17 @@ router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
             }
         }
 
-        // Save prompt to database
-        const [promptResult] = await db.query(
+        // ✅ FIX: Manually generate ID for ai_generation_prompts
+        const [promptRows] = await db.query('SELECT MAX(id) as maxId FROM ai_generation_prompts');
+        const promptId = (promptRows[0].maxId || 0) + 1;
+
+        await db.query(
             `INSERT INTO ai_generation_prompts 
-             (admin_id, category_id, exam_id, prompt_text, question_type, difficulty, num_questions, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'processing')`,
-            [req.userId, category_id || null, exam_id || null, prompt, question_type, difficulty, num_questions]
+             (id, admin_id, category_id, exam_id, prompt_text, question_type, difficulty, num_questions, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'processing')`,
+            [promptId, req.userId, category_id || null, exam_id || null, prompt, question_type, difficulty, num_questions]
         );
 
-        const promptId = promptResult.insertId;
         console.log('✅ Prompt saved with ID:', promptId);
 
         // Generate questions using Gemini
@@ -147,10 +148,7 @@ router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
         let generatedTitle;
         
         try {
-            // Generate title first
             generatedTitle = await generateTestTitle(prompt, examName, categoryName);
-            
-            // Then generate questions
             generatedQuestions = await generateQuestionsWithGemini(
                 prompt,
                 examContext,
@@ -164,14 +162,18 @@ router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
             generatedQuestions = generateMockQuestions(prompt, question_type, difficulty, num_questions);
         }
 
-        // Save generated questions to database
+        // ✅ FIX: Manually generate ID for each ai_generated_questions row
         for (const q of generatedQuestions) {
+            const [qRows] = await db.query('SELECT MAX(id) as maxId FROM ai_generated_questions');
+            const qId = (qRows[0].maxId || 0) + 1;
+
             await db.query(
                 `INSERT INTO ai_generated_questions 
-                 (prompt_id, question_text, question_text_hindi, option_a, option_b, option_c, option_d,
+                 (id, prompt_id, question_text, question_text_hindi, option_a, option_b, option_c, option_d,
                   correct_answer, explanation, explanation_hindi, difficulty, topic)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
+                    qId,
                     promptId,
                     q.question_text || '',
                     q.question_text_hindi || '',
@@ -207,7 +209,7 @@ router.post('/generate', auth, adminController.isAdmin, async (req, res) => {
         res.json({
             message: 'Questions generated successfully',
             promptId,
-            questions: savedQuestions, // Send back questions with real IDs
+            questions: savedQuestions,
             suggestedTitle: generatedTitle,
             examName,
             categoryName
@@ -343,13 +345,18 @@ router.post('/create-test', auth, adminController.isAdmin, async (req, res) => {
 
         const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 4), 0);
 
-        const [testResult] = await db.query(
+        // ✅ FIX: Manually generate ID for tests
+        const [testRows] = await db.query('SELECT MAX(id) as maxId FROM tests');
+        const testId = (testRows[0].maxId || 0) + 1;
+
+        await db.query(
             `INSERT INTO tests (
-                title, description, category_id, exam_id, duration,
+                id, title, description, category_id, exam_id, duration,
                 total_questions, total_marks, passing_marks, negative_marking,
                 is_free, price, instructions, status, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
+                testId,
                 title,
                 description || `AI Generated test based on: ${title}`,
                 category_id || null,
@@ -367,17 +374,20 @@ router.post('/create-test', auth, adminController.isAdmin, async (req, res) => {
             ]
         );
 
-        const testId = testResult.insertId;
-
+        // ✅ FIX: Manually generate ID for each question
         for (const q of questions) {
+            const [qqRows] = await db.query('SELECT MAX(id) as maxId FROM questions');
+            const qqId = (qqRows[0].maxId || 0) + 1;
+
             await db.query(
                 `INSERT INTO questions (
-                    test_id, question_text, question_text_hindi,
+                    id, test_id, question_text, question_text_hindi,
                     option_a, option_b, option_c, option_d,
                     correct_answer, explanation, explanation_hindi,
                     marks, difficulty, topic
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
+                    qqId,
                     testId,
                     q.question_text || '',
                     q.question_text_hindi || '',
@@ -420,10 +430,9 @@ router.post('/create-test', auth, adminController.isAdmin, async (req, res) => {
 });
 
 // ============================================
-// HELPER FUNCTIONS - MUST BE DEFINED
+// HELPER FUNCTIONS
 // ============================================
 
-// Generate Test Title using Gemini
 async function generateTestTitle(prompt, examName, categoryName) {
     try {
         const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -456,7 +465,6 @@ Return ONLY the title text, nothing else.`;
     }
 }
 
-// Generate Questions with Gemini
 async function generateQuestionsWithGemini(prompt, examContext, questionType, difficulty, numQuestions) {
     try {
         const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -528,7 +536,6 @@ JSON array:`;
     }
 }
 
-// Mock data generator (fallback)
 function generateMockQuestions(prompt, type, difficulty, count) {
     const questions = [];
     for (let i = 1; i <= count; i++) {

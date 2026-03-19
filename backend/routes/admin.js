@@ -2,11 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const auth = require('../middleware/auth');
-
-// ✅ IMPORT ADMIN CONTROLLER
 const adminController = require('../controllers/adminController');
 
-// All admin routes require authentication and admin role
 router.use(auth);
 router.use(adminController.isAdmin);
 
@@ -14,7 +11,6 @@ router.use(adminController.isAdmin);
 // TEST MANAGEMENT ROUTES
 // ============================================
 
-// Get all tests with details
 router.get('/tests', async (req, res) => {
   try {
     const [tests] = await db.query(`
@@ -30,11 +26,8 @@ router.get('/tests', async (req, res) => {
   }
 });
 
-// Get all categories (Legacy route, but keeping it so nothing breaks)
 router.get('/test-categories', async (req, res) => {
   try {
-    // Note: It's better to use your exam_categories table, 
-    // but keeping this if your old code needs it
     const [categories] = await db.query('SELECT DISTINCT category_id FROM tests WHERE category_id IS NOT NULL');
     res.json(categories.map(c => c.category_id));
   } catch (error) {
@@ -43,7 +36,6 @@ router.get('/test-categories', async (req, res) => {
   }
 });
 
-// Get questions for a specific test
 router.get('/tests/:testId/questions', async (req, res) => {
   try {
     const [questions] = await db.query(
@@ -57,7 +49,7 @@ router.get('/tests/:testId/questions', async (req, res) => {
   }
 });
 
-// Create new test (✅ FIXED: Removed 'subject', added 'exam_id')
+// ✅ FIX 1: POST /tests
 router.post('/tests', async (req, res) => {
   try {
     const { 
@@ -65,15 +57,19 @@ router.post('/tests', async (req, res) => {
       duration, negative_marking, passing_marks, is_free, 
       price, instructions, tags 
     } = req.body;
-    
-    const [result] = await db.query(
+
+    // ✅ Manually generate ID
+    const [testRows] = await db.query('SELECT MAX(id) as maxId FROM tests');
+    const testId = (testRows[0].maxId || 0) + 1;
+
+    await db.query(
       `INSERT INTO tests (
-        title, description, category_id, exam_id, difficulty,
+        id, title, description, category_id, exam_id, difficulty,
         duration, negative_marking, passing_marks, is_free,
         price, instructions, tags, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        title, description, category_id, exam_id, difficulty,
+        testId, title, description, category_id, exam_id, difficulty,
         duration, negative_marking, passing_marks, is_free,
         price, instructions, JSON.stringify(tags || []), req.userId
       ]
@@ -81,7 +77,7 @@ router.post('/tests', async (req, res) => {
     
     res.status(201).json({ 
       message: 'Test created successfully', 
-      testId: result.insertId 
+      testId: testId
     });
   } catch (error) {
     console.error('Error creating test:', error);
@@ -89,24 +85,15 @@ router.post('/tests', async (req, res) => {
   }
 });
 
-// Update existing test (✅ NEW ROUTE: For editing tests in TestManagement.jsx)
-// ============================================
-// UPDATE EXISTING TEST
-// ============================================
 router.put('/tests/:testId', async (req, res) => {
   try {
-    const { 
-      title, description, category_id, exam_id, status 
-    } = req.body;
-
-    // Database me test update karne ki query
+    const { title, description, category_id, exam_id, status } = req.body;
     await db.query(
       `UPDATE tests SET 
         title = ?, description = ?, category_id = ?, exam_id = ?, status = ?
        WHERE id = ?`,
       [title, description, category_id, exam_id, status, req.params.testId]
     );
-
     res.json({ message: 'Test updated successfully' });
   } catch (error) {
     console.error('Error updating test:', error);
@@ -114,7 +101,6 @@ router.put('/tests/:testId', async (req, res) => {
   }
 });
 
-// Delete test
 router.delete('/tests/:testId', async (req, res) => {
   try {
     await db.query('DELETE FROM tests WHERE id = ?', [req.params.testId]);
@@ -125,50 +111,49 @@ router.delete('/tests/:testId', async (req, res) => {
   }
 });
 
-// Duplicate test (✅ FIXED: Copies category_id and exam_id properly)
+// ✅ FIX 2: POST /tests/:testId/duplicate
 router.post('/tests/:testId/duplicate', async (req, res) => {
   try {
     const [test] = await db.query('SELECT * FROM tests WHERE id = ?', [req.params.testId]);
     if (test.length === 0) return res.status(404).json({ message: 'Test not found' });
     
     const originalTest = test[0];
-    
-    const [result] = await db.query(
-      `INSERT INTO tests (title, description, duration, category_id, exam_id, price, status, created_by) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [`${originalTest.title} (Copy)`, originalTest.description, originalTest.duration, 
+
+    // ✅ Manually generate ID for duplicated test
+    const [testRows] = await db.query('SELECT MAX(id) as maxId FROM tests');
+    const newTestId = (testRows[0].maxId || 0) + 1;
+
+    await db.query(
+      `INSERT INTO tests (id, title, description, duration, category_id, exam_id, price, status, created_by) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newTestId, `${originalTest.title} (Copy)`, originalTest.description, originalTest.duration, 
        originalTest.category_id, originalTest.exam_id, originalTest.price, 'draft', req.userId]
     );
     
-    // Copy questions
+    // Copy questions with manual IDs
     const [questions] = await db.query('SELECT * FROM questions WHERE test_id = ?', [req.params.testId]);
     for (const q of questions) {
+      const [qRows] = await db.query('SELECT MAX(id) as maxId FROM questions');
+      const newQId = (qRows[0].maxId || 0) + 1;
+
       await db.query(
-        `INSERT INTO questions (test_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [result.insertId, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer, q.explanation]
+        `INSERT INTO questions (id, test_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newQId, newTestId, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer, q.explanation]
       );
     }
     
-    res.json({ message: 'Test duplicated successfully', testId: result.insertId });
+    res.json({ message: 'Test duplicated successfully', testId: newTestId });
   } catch (error) {
     console.error('Error duplicating test:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Publish test
 router.post('/tests/:testId/publish', async (req, res) => {
   try {
-    const { testId } = req.params;
-    
-    await db.query(
-      'UPDATE tests SET status = ? WHERE id = ?',
-      ['published', testId]
-    );
-    
+    await db.query('UPDATE tests SET status = ? WHERE id = ?', ['published', req.params.testId]);
     res.json({ message: 'Test published successfully' });
-    
   } catch (error) {
     console.error('Error publishing test:', error);
     res.status(500).json({ message: 'Server error' });
@@ -179,31 +164,31 @@ router.post('/tests/:testId/publish', async (req, res) => {
 // QUESTIONS MANAGEMENT ROUTES
 // ============================================
 
-// Add questions to test
+// ✅ FIX 3: POST /questions
 router.post('/questions', async (req, res) => {
   try {
     const { testId, questions } = req.body;
     
     console.log('📥 Received request to add questions:', { testId, questionsCount: questions?.length });
     
-    if (!testId) {
-      return res.status(400).json({ message: 'testId is required' });
-    }
-    
-    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    if (!testId) return res.status(400).json({ message: 'testId is required' });
+    if (!questions || !Array.isArray(questions) || questions.length === 0)
       return res.status(400).json({ message: 'questions array is required' });
-    }
 
     for (const q of questions) {
+      // ✅ Manually generate ID for each question
+      const [qRows] = await db.query('SELECT MAX(id) as maxId FROM questions');
+      const qId = (qRows[0].maxId || 0) + 1;
+
       await db.query(
         `INSERT INTO questions (
-          test_id, question_text, question_text_hindi,
+          id, test_id, question_text, question_text_hindi,
           option_a, option_b, option_c, option_d,
           correct_answer, explanation, explanation_hindi,
           marks, difficulty, topic, image_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          testId, 
+          qId, testId, 
           q.question_text || '',
           q.question_text_hindi || null,
           q.option_a || '',
@@ -221,16 +206,12 @@ router.post('/questions', async (req, res) => {
       );
     }
 
-    // Update total questions count
     await db.query(
       'UPDATE tests SET total_questions = ? WHERE id = ?',
       [questions.length, testId]
     );
 
-    res.json({ 
-      message: 'Questions added successfully',
-      count: questions.length 
-    });
+    res.json({ message: 'Questions added successfully', count: questions.length });
     
   } catch (error) {
     console.error('❌ Error adding questions:', error);
@@ -238,7 +219,7 @@ router.post('/questions', async (req, res) => {
   }
 });
 
-// Bulk create test
+// ✅ FIX 4: POST /tests/bulk
 router.post('/tests/bulk', async (req, res) => {
   try {
     console.log('📥 Received bulk test request:', JSON.stringify(req.body, null, 2));
@@ -249,50 +230,30 @@ router.post('/tests/bulk', async (req, res) => {
       price, language, status, banner_image, tags, instructions
     } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ message: 'Title is required' });
-    }
+    if (!title) return res.status(400).json({ message: 'Title is required' });
 
-    const testData = {
-      title: title || '',
-      description: description || '',
-      category_id: category_id || null,
-      exam_id: exam_id || null,
-      duration: duration || 60,
-      total_questions: total_questions || 0,
-      total_marks: total_marks || 0,
-      passing_marks: passing_marks || 40,
-      negative_marking: negative_marking || 0.25,
-      is_free: is_free || false,
-      price: price || 0,
-      language: language || 'english',
-      status: status || 'draft',
-      banner_image: banner_image || null,
-      tags: tags ? JSON.stringify(tags) : JSON.stringify([]),
-      instructions: instructions || '',
-      created_by: req.userId
-    };
+    // ✅ Manually generate ID
+    const [testRows] = await db.query('SELECT MAX(id) as maxId FROM tests');
+    const testId = (testRows[0].maxId || 0) + 1;
 
-    const query = `
-      INSERT INTO tests (
-        title, description, category_id, exam_id, duration, total_questions,
+    await db.query(
+      `INSERT INTO tests (
+        id, title, description, category_id, exam_id, duration, total_questions,
         total_marks, passing_marks, negative_marking, is_free,
-        price, language, status, banner_image, tags, instructions,
-        created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+        price, language, status, banner_image, tags, instructions, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        testId,
+        title || '', description || '', category_id || null, exam_id || null,
+        duration || 60, total_questions || 0, total_marks || 0,
+        passing_marks || 40, negative_marking || 0.25, is_free || false,
+        price || 0, language || 'english', status || 'draft', banner_image || null,
+        tags ? JSON.stringify(tags) : JSON.stringify([]),
+        instructions || '', req.userId
+      ]
+    );
 
-    const values = [
-      testData.title, testData.description, testData.category_id, testData.exam_id,
-      testData.duration, testData.total_questions, testData.total_marks,
-      testData.passing_marks, testData.negative_marking, testData.is_free,
-      testData.price, testData.language, testData.status, testData.banner_image,
-      testData.tags, testData.instructions, testData.created_by
-    ];
-    
-    const [result] = await db.query(query, values);
-
-    res.status(201).json({ message: 'Test created successfully', testId: result.insertId });
+    res.status(201).json({ message: 'Test created successfully', testId: testId });
     
   } catch (error) {
     console.error('❌ Error creating test:', error);
@@ -300,7 +261,7 @@ router.post('/tests/bulk', async (req, res) => {
   }
 });
 
-// Bulk create questions
+// ✅ FIX 5: POST /questions/bulk
 router.post('/questions/bulk', async (req, res) => {
   try {
     console.log('📥 Received bulk questions request:', JSON.stringify(req.body, null, 2));
@@ -316,25 +277,25 @@ router.post('/questions/bulk', async (req, res) => {
 
     for (const q of questions) {
       try {
-        const query = `
-          INSERT INTO questions (
-            test_id, question_text, question_text_hindi,
+        // ✅ Manually generate ID for each question
+        const [qRows] = await db.query('SELECT MAX(id) as maxId FROM questions');
+        const qId = (qRows[0].maxId || 0) + 1;
+
+        await db.query(
+          `INSERT INTO questions (
+            id, test_id, question_text, question_text_hindi,
             option_a, option_b, option_c, option_d,
             correct_answer, explanation, explanation_hindi,
             marks, difficulty, topic, image_url
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const values = [
-          testId, q.question_text || '', q.question_text_hindi || null,
-          q.option_a || '', q.option_b || '', q.option_c || '', q.option_d || '',
-          q.correct_answer || 'A', q.explanation || null, q.explanation_hindi || null,
-          q.marks || 4, q.difficulty || 'medium', q.topic || null, q.image_url || null
-        ];
-
-        await db.query(query, values);
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            qId, testId, q.question_text || '', q.question_text_hindi || null,
+            q.option_a || '', q.option_b || '', q.option_c || '', q.option_d || '',
+            q.correct_answer || 'A', q.explanation || null, q.explanation_hindi || null,
+            q.marks || 4, q.difficulty || 'medium', q.topic || null, q.image_url || null
+          ]
+        );
         addedCount++;
-        
       } catch (qError) {
         console.error('❌ Error adding individual question:', qError);
         errors.push(qError.message);
@@ -357,7 +318,10 @@ router.post('/questions/bulk', async (req, res) => {
   }
 });
 
-// Get all users
+// ============================================
+// USER MANAGEMENT ROUTES
+// ============================================
+
 router.get('/users', async (req, res) => {
   try {
     const [columns] = await db.query("SHOW COLUMNS FROM users LIKE 'last_login'");
@@ -369,14 +333,12 @@ router.get('/users', async (req, res) => {
     
     const [users] = await db.query(query);
     res.json(users);
-    
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get user statistics
 router.get('/user-stats', async (req, res) => {
   try {
     const [totalUsers] = await db.query('SELECT COUNT(*) as count FROM users');
@@ -399,7 +361,6 @@ router.get('/user-stats', async (req, res) => {
   }
 });
 
-// Get dashboard stats
 router.get('/stats', async (req, res) => {
   try {
     const [totalUsers] = await db.query('SELECT COUNT(*) as count FROM users');
@@ -407,18 +368,16 @@ router.get('/stats', async (req, res) => {
     const [activeTests] = await db.query("SELECT COUNT(*) as count FROM tests WHERE status = 'published'");
     const [newToday] = await db.query("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE()");
     
-    // Fallback if test_attempts or payments table doesn't exist yet
     let testsTakenToday = 0;
     let totalRevenue = 0;
 
     try {
       const [testsToday] = await db.query("SELECT COUNT(*) as count FROM test_attempts WHERE DATE(created_at) = CURDATE()");
       testsTakenToday = testsToday[0].count;
-      
       const [revenue] = await db.query("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'success'");
       totalRevenue = revenue[0].total;
     } catch(e) {
-      console.log('Optional tables (test_attempts, payments) might not exist yet. Using defaults.');
+      console.log('Optional tables not found, using defaults.');
     }
     
     res.json({
@@ -435,7 +394,6 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Get recent activity
 router.get('/recent-activity', async (req, res) => {
   try {
     const activity = [
@@ -450,7 +408,6 @@ router.get('/recent-activity', async (req, res) => {
   }
 });
 
-// Get analytics data
 router.get('/analytics', async (req, res) => {
   try {
     res.json([
