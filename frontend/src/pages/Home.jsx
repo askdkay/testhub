@@ -550,10 +550,22 @@ function Home() {
             {/* About */}
             <div>
               <div className="flex items-center space-x-2 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-xl flex items-center justify-center">
-                  <FiBookOpen className="text-white text-xl" />
-                </div>
-                <span className="text-xl font-bold">TestSeries</span>
+                <div className='w-8 h-8 md:w-10 md:h-10 border-2 rounded-xl border-white/20 ounded-4xl flex items-center justify-center'>
+                <span className='text-white text-xl md:text-2xl font-bold'>E</span>
+              </div>
+              <div className='inline-flex items-center text-base md:text-xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent'>
+                <span>E</span>
+                <span className='text-amber-50 inline-flex flex-col items-center justify-center text-[0.50em] leading-[0.4rem]'>
+                  <span>a</span>
+                  <span>x</span>
+                </span>
+                <span>mC</span>
+                <span className='text-amber-50 inline-flex flex-col items-center justify-center text-[0.50em] leading-[0.4rem]'>
+                  <span>r</span>
+                  <span>e</span>
+                </span>
+                <span>st</span>
+              </div>
               </div>
               <p className="text-gray-400 mb-4">
                 India's most precise test series platform for competitive exams. Dedicated to empowering the next generation of toppers.
@@ -641,7 +653,7 @@ function Home() {
           {/* Bottom Bar */}
           <div className="border-t border-glass-border pt-8 mt-8">
             <div className="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
-              <p>© 2026 TestSeries. All rights reserved. Made with DKAY</p>
+              <p>© 2026 TestSeries. All rights reserved. Made with by<span className=" font-bold bg-gradient-to-r from-green-400 to-amber-500 bg-clip-text text-transparent"> DKAY</span></p>
               <div className="flex space-x-6 mt-4 md:mt-0">
                 <span>🇮🇳 Proudly Indian</span>
                 <span>🔒 Secure Payment</span>
