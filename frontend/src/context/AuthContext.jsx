@@ -4,13 +4,10 @@ import {
     auth, 
     googleProvider, 
     setupRecaptcha,
-    signInWithGooglePopup
+    signInWithGoogle,
+    sendOTP as firebaseSendOTP
 } from '../services/firebase';
-import { 
-    signInWithPopup, 
-    signInWithPhoneNumber,
-    onAuthStateChanged
-} from 'firebase/auth';
+import { signInWithPopup, signInWithPhoneNumber } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -88,86 +85,70 @@ export const AuthProvider = ({ children }) => {
     };
 
     // ✅ GOOGLE LOGIN (Fixed for production)
-    const loginWithGoogle = async () => {
-        setLoading(true);
-        try {
-            // Use the fixed signInWithGooglePopup from firebase.js
-            const firebaseUser = await signInWithGooglePopup();
-            
-            if (!firebaseUser) {
-                throw new Error('No user returned from Google');
-            }
-
-            console.log('Firebase user:', firebaseUser.email);
-            
-            // Send to backend
-            const res = await API.post('/auth/social-login', {
-                email: firebaseUser.email,
-                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-                uid: firebaseUser.uid,
-                provider: 'google'
-            });
-
-            saveSession(res.data.token, res.data.user);
-            return { success: true };
-            
-        } catch (error) {
-            console.error('Google Login Error:', error);
-            let errorMessage = 'Google Login Failed';
-            
-            if (error.code === 'auth/popup-blocked') {
-                errorMessage = 'Popup was blocked. Please allow popups for this site.';
-            } else if (error.code === 'auth/unauthorized-domain') {
-                errorMessage = 'Domain not authorized. Contact support.';
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-            
-            return { success: false, message: errorMessage };
-        } finally {
-            setLoading(false);
+// ✅ GOOGLE LOGIN (Fixed)
+const loginWithGoogle = async () => {
+    setLoading(true);
+    try {
+        const firebaseUser = await signInWithGoogle();
+        
+        if (!firebaseUser) {
+            throw new Error('No user returned from Google');
         }
-    };
 
-    // ✅ PHONE AUTH - Send OTP
-    const sendOTP = async (phoneNumber) => {
-        try {
-            // Clean phone number
-            let cleanPhone = phoneNumber.replace(/\s/g, '');
-            if (!cleanPhone.startsWith('+')) {
-                cleanPhone = `+91${cleanPhone}`;
-            }
-            
-            console.log('Sending OTP to:', cleanPhone);
-            
-            // Setup recaptcha
-            setupRecaptcha();
-            const appVerifier = window.recaptchaVerifier;
-            
-            if (!appVerifier) {
-                throw new Error('Recaptcha not initialized');
-            }
-            
-            const confirmationResult = await signInWithPhoneNumber(auth, cleanPhone, appVerifier);
-            window.confirmationResult = confirmationResult;
-            
-            return { success: true };
-            
-        } catch (error) {
-            console.error('Send OTP Error:', error);
-            let errorMessage = 'Failed to send OTP';
-            
-            if (error.code === 'auth/invalid-phone-number') {
-                errorMessage = 'Invalid phone number format';
-            } else if (error.code === 'auth/too-many-requests') {
-                errorMessage = 'Too many requests. Try again later.';
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-            
-            return { success: false, message: errorMessage };
+        console.log('Firebase user:', firebaseUser.email);
+        
+        const res = await API.post('/auth/social-login', {
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            uid: firebaseUser.uid,
+            provider: 'google'
+        });
+
+        saveSession(res.data.token, res.data.user);
+        return { success: true };
+        
+    } catch (error) {
+        console.error('Google Login Error:', error);
+        let errorMessage = 'Google Login Failed';
+        
+        if (error.code === 'auth/popup-blocked') {
+            errorMessage = 'Popup was blocked. Please allow popups for this site.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+            errorMessage = 'Domain not authorized. Contact support.';
         }
-    };
+        
+        return { success: false, message: errorMessage };
+    } finally {
+        setLoading(false);
+    }
+};
+
+// ✅ PHONE AUTH - Send OTP
+const sendOTP = async (phoneNumber) => {
+    try {
+        let cleanPhone = phoneNumber.replace(/\s/g, '');
+        if (!cleanPhone.startsWith('+')) {
+            cleanPhone = `+91${cleanPhone}`;
+        }
+        
+        console.log('Sending OTP to:', cleanPhone);
+        
+        const appVerifier = setupRecaptcha();
+        
+        if (!appVerifier) {
+            throw new Error('Recaptcha not initialized');
+        }
+        
+        const confirmationResult = await firebaseSendOTP(cleanPhone, appVerifier);
+        window.confirmationResult = confirmationResult;
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('Send OTP Error:', error);
+        return { success: false, message: error.message || 'Failed to send OTP' };
+    }
+};
 
     // ✅ PHONE AUTH - Verify OTP
     const verifyOTP = async (otp) => {
