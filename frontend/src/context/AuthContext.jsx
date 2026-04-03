@@ -1,7 +1,16 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import API from '../services/api';
-import { auth, googleProvider, setupRecaptcha } from '../services/firebase';
-import { signInWithPopup, signInWithPhoneNumber } from 'firebase/auth';
+import { 
+    auth, 
+    googleProvider, 
+    setupRecaptcha,
+    signInWithGooglePopup
+} from '../services/firebase';
+import { 
+    signInWithPopup, 
+    signInWithPhoneNumber,
+    onAuthStateChanged
+} from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -16,25 +25,37 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [firebaseUser, setFirebaseUser] = useState(null);
 
+    // ✅ Listen to Firebase auth state changes
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+            console.log('Firebase Auth State:', fbUser?.email || fbUser?.phoneNumber || 'No user');
+            setFirebaseUser(fbUser);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // ✅ Check existing session
     useEffect(() => {
         const checkLoggedInUser = async () => {
             const token = localStorage.getItem('token');
             const storedUser = localStorage.getItem('user');
 
             if (token && storedUser) {
-                setUser(JSON.parse(storedUser));
-                setLoading(false);
-            } else if (token) {
                 try {
-                    const res = await API.get('/auth/me'); 
-                    setUser(res.data.user);
+                    // Verify token with backend
+                    const res = await API.get('/auth/verify');
+                    if (res.data.valid) {
+                        setUser(JSON.parse(storedUser));
+                    } else {
+                        logout();
+                    }
                 } catch (error) {
                     console.error('Session expired');
                     logout();
-                } finally {
-                    setLoading(false);
                 }
+                setLoading(false);
             } else {
                 setLoading(false);
             }
@@ -42,96 +63,163 @@ export const AuthProvider = ({ children }) => {
         checkLoggedInUser();
     }, []);
 
+    // ✅ Save session helper
+    const saveSession = (token, userData) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+    };
+
+    // ✅ Regular Login
     const login = async (email, password) => {
-        // ... (Aapka purana login logic same rahega) ...
         setLoading(true);
         try {
             const res = await API.post('/auth/login', { email, password });
             saveSession(res.data.token, res.data.user);
             return { success: true };
         } catch (error) {
-            return { success: false, message: error.response?.data?.message || 'Login failed' };
+            return { 
+                success: false, 
+                message: error.response?.data?.message || 'Login failed' 
+            };
         } finally {
             setLoading(false);
         }
     };
 
-    // --- NAYA: GOOGLE LOGIN LOGIC ---
+    // ✅ GOOGLE LOGIN (Fixed for production)
     const loginWithGoogle = async () => {
+        setLoading(true);
         try {
-            const result = await signInWithPopup(auth, googleProvider);
-            const firebaseUser = result.user;
+            // Use the fixed signInWithGooglePopup from firebase.js
+            const firebaseUser = await signInWithGooglePopup();
             
-            // Firebase se data lekar apne custom backend ko bhejein
+            if (!firebaseUser) {
+                throw new Error('No user returned from Google');
+            }
+
+            console.log('Firebase user:', firebaseUser.email);
+            
+            // Send to backend
             const res = await API.post('/auth/social-login', {
                 email: firebaseUser.email,
-                name: firebaseUser.displayName,
+                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
                 uid: firebaseUser.uid,
                 provider: 'google'
             });
 
             saveSession(res.data.token, res.data.user);
             return { success: true };
+            
         } catch (error) {
-            return { success: false, message: error.message || 'Google Login Failed' };
+            console.error('Google Login Error:', error);
+            let errorMessage = 'Google Login Failed';
+            
+            if (error.code === 'auth/popup-blocked') {
+                errorMessage = 'Popup was blocked. Please allow popups for this site.';
+            } else if (error.code === 'auth/unauthorized-domain') {
+                errorMessage = 'Domain not authorized. Contact support.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            return { success: false, message: errorMessage };
+        } finally {
+            setLoading(false);
         }
     };
 
-    // --- NAYA: PHONE AUTH LOGIC ---
+    // ✅ PHONE AUTH - Send OTP
     const sendOTP = async (phoneNumber) => {
         try {
+            // Clean phone number
+            let cleanPhone = phoneNumber.replace(/\s/g, '');
+            if (!cleanPhone.startsWith('+')) {
+                cleanPhone = `+91${cleanPhone}`;
+            }
+            
+            console.log('Sending OTP to:', cleanPhone);
+            
+            // Setup recaptcha
             setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
-            const formatPhone = "+" + phoneNumber; // Ex: +919876543210
-            const confirmationResult = await signInWithPhoneNumber(auth, formatPhone, appVerifier);
+            
+            if (!appVerifier) {
+                throw new Error('Recaptcha not initialized');
+            }
+            
+            const confirmationResult = await signInWithPhoneNumber(auth, cleanPhone, appVerifier);
             window.confirmationResult = confirmationResult;
+            
             return { success: true };
+            
         } catch (error) {
-            return { success: false, message: error.message || 'Failed to send OTP' };
+            console.error('Send OTP Error:', error);
+            let errorMessage = 'Failed to send OTP';
+            
+            if (error.code === 'auth/invalid-phone-number') {
+                errorMessage = 'Invalid phone number format';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many requests. Try again later.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            return { success: false, message: errorMessage };
         }
     };
 
+    // ✅ PHONE AUTH - Verify OTP
     const verifyOTP = async (otp) => {
         try {
+            if (!window.confirmationResult) {
+                throw new Error('No OTP request found. Please send OTP first.');
+            }
+            
             const result = await window.confirmationResult.confirm(otp);
             const firebaseUser = result.user;
-
-            // Verified phone number apne backend me bhej kar login/register karwayein
+            
+            console.log('Phone verified:', firebaseUser.phoneNumber);
+            
+            // Send to backend
             const res = await API.post('/auth/social-login', {
                 phone: firebaseUser.phoneNumber,
                 uid: firebaseUser.uid,
+                name: 'Student',
                 provider: 'phone'
             });
 
             saveSession(res.data.token, res.data.user);
             return { success: true };
+            
         } catch (error) {
-            return { success: false, message: 'Invalid OTP' };
+            console.error('Verify OTP Error:', error);
+            let errorMessage = 'Invalid OTP';
+            
+            if (error.code === 'auth/invalid-verification-code') {
+                errorMessage = 'Invalid OTP. Please try again.';
+            } else if (error.code === 'auth/code-expired') {
+                errorMessage = 'OTP expired. Please request a new one.';
+            }
+            
+            return { success: false, message: errorMessage };
         }
     };
 
-    // Helper function
-    const saveSession = (token, userData) => {
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData)); 
-        setUser(userData);
-    };
-
-// --- ADMIN LOGIN LOGIC ---
+    // ✅ ADMIN LOGIN
     const adminLogin = async (email, password) => {
         setLoading(true);
         try {
             const res = await API.post('/auth/login', { email, password });
             
-            // YAHAN CHECK KAREIN KI KYA WO ADMIN HAI?
             if (res.data.user.role !== 'admin') {
                 setLoading(false);
                 return { success: false, message: 'Access Denied: You are not an Admin.' };
             }
 
-            // Agar admin hai, tabhi token aur data save karein
             saveSession(res.data.token, res.data.user);
             return { success: true };
+            
         } catch (error) {
             return { 
                 success: false, 
@@ -142,7 +230,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // --- REGISTER LOGIC ---
+    // ✅ REGISTER
     const register = async (userData) => {
         setLoading(true);
         try {
@@ -159,17 +247,27 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-
-
+    // ✅ LOGOUT
     const logout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
+        // Also sign out from Firebase
+        if (auth) {
+            auth.signOut().catch(console.error);
+        }
     };
 
     const value = {
-        user, login, register, adminLogin, logout, loading,
-        loginWithGoogle, sendOTP, verifyOTP // Naye functions export kiye
+        user,
+        login,
+        register,
+        adminLogin,
+        logout,
+        loading,
+        loginWithGoogle,
+        sendOTP,
+        verifyOTP
     };
 
     return (
