@@ -1,34 +1,29 @@
 import axios from 'axios';
 
+// ✅ Production ke liye environment variable use karo
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const API = axios.create({
-    baseURL: 'http://localhost:5000/api'
+    baseURL: API_BASE_URL,
+    withCredentials: true
 });
 
-// Request interceptor - Har request mein token add karo
+// Request interceptor
 API.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-        // console.log('API Request:', config.method.toUpperCase(), config.url, config.data);
         return config;
     },
-    (error) => {
-        return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
 );
 
-// Response interceptor - Error handling
+// Response interceptor
 API.interceptors.response.use(
-    (response) => {
-        // console.log('API Response:', response.status, response.config.url);
-        return response;
-    },
+    (response) => response,
     (error) => {
-        // console.error('API Error:', error.response?.status, error.config?.url, error.response?.data);
-        
-        // Agar 401 error aaye to login page redirect
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             window.location.href = '/login';
