@@ -4,7 +4,8 @@ import {
     signInWithPopup, 
     GoogleAuthProvider,
     RecaptchaVerifier,
-    signInWithPhoneNumber
+    signInWithPhoneNumber,
+    onAuthStateChanged           // ✅ YEH LINE ADD KARO
 } from 'firebase/auth';
 
 // Your Firebase config (from environment variables)
@@ -95,5 +96,6 @@ export {
     googleProvider, 
     signInWithGoogle,
     setupRecaptcha,
-    sendOTP
+    sendOTP,
+    onAuthStateChanged        // ✅ YEH BHI EXPORT KARO
 };
