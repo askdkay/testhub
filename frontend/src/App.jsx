@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 import Navbar from "./components/Navbar"; //✅
-import Home from "./pages/Home";//✅
-import Login from "./pages/Login";//✅
+import Home from "./pages/Home"; //✅
+import Login from "./pages/Login"; //✅
 import AdminLogin from "./pages/Admin/AdminLogin"; //✅
 import Register from "./pages/Register"; //✅
 import Tests from "./pages/Tests"; //✅
@@ -12,38 +12,36 @@ import Dashboard from "./pages/Admin/Dashboard"; //✅
 import Students from "./pages/Admin/Students"; //✅
 import AddTest from "./pages/Admin/AddTest"; //✅
 import AddQuestions from "./pages/Admin/AddQuestions"; //✅ admin/add-questions/1
-import ForgotPassword from "./pages/ForgotPassword"; //✅  
-import TestResult from "./pages/TestResult";//✅ rendome data fix
+import ForgotPassword from "./pages/ForgotPassword"; //✅
+import TestResult from "./pages/TestResult"; //✅ rendome data fix
 import Settings from "./pages/Settings"; //✅
 import Profile from "./pages/Profile"; //✅
 import Exams from "./pages/Exams"; //✅
 import GkCurrentAffairs from "./pages/GkCurrentAffairs"; //✅
-import UserAnalytics from "./pages/Admin/Analytics";//✅
+import UserAnalytics from "./pages/Admin/Analytics"; //✅
 import FreeTests from "./pages/FFF"; //✅
 import TestManagement from "./pages/Admin/TestManagement"; //✅
 import BulkTestImport from "./pages/Admin/BulkTestImport"; //✅
-import ContentManagement from "./pages/Admin/ContentManagement";//✅
-import ExamContent from "./pages/Exams/ExamContent";//✅
-import BlogManager from "./pages/Admin/BlogManager";//✅
+import ContentManagement from "./pages/Admin/ContentManagement"; //✅
+import ExamContent from "./pages/Exams/ExamContent"; //✅
+import BlogManager from "./pages/Admin/BlogManager"; //✅
 import BlogList from "./pages/Blogs/BlogList"; //✅
-import BlogDetail from "./pages/Blogs/BlogDetail";  //✅
-import AboutUs from './pages/AboutUs'; //✅
-import ContactUs from './pages/ContactUs'; //✅
-import TermsConditions from './pages/TermsConditions'; //✅
-import PrivacyPolicy from './pages/PrivacyPolicy'; //✅
-import RefundPolicy from './pages/RefundPolicy'; //✅
-import FAQ from './pages/FAQ'; //✅
-// import ExamDetail from './pages/ExamDetail'; //✅
-import CreateCategory from './pages/Admin/CreateCategory'; //✅
-import CreateExam from './pages/Admin/CreateExam';    //✅
-import ManageCategoriesExams from './pages/Admin/ManageCategoriesExams'; //✅
-import ExamDetailsManager from './pages/Admin/ExamDetailsManager';
-import ExamPagesManager from './pages/Admin/ExamPagesManager';
-import ExamPageEditor from './pages/Admin/ExamPageEditor';
-import ExamDetailPage from './pages/Exams/ExamDetailPage';
-import AITestGenerator from './pages/Admin/AITestGenerator';
-
-
+import BlogDetail from "./pages/Blogs/BlogDetail"; //✅
+import AboutUs from "./pages/AboutUs"; //✅
+import ContactUs from "./pages/ContactUs"; //✅
+import TermsConditions from "./pages/TermsConditions"; //✅
+import PrivacyPolicy from "./pages/PrivacyPolicy"; //✅
+import RefundPolicy from "./pages/RefundPolicy"; //✅
+import FAQ from "./pages/FAQ"; //✅
+import CreateCategory from "./pages/Admin/CreateCategory"; //✅
+import CreateExam from "./pages/Admin/CreateExam"; //✅
+import ManageCategoriesExams from "./pages/Admin/ManageCategoriesExams"; //✅
+import ExamDetailsManager from "./pages/Admin/ExamDetailsManager"; //✅
+import ExamPagesManager from "./pages/Admin/ExamPagesManager"; //✅
+import ExamPageEditor from "./pages/Admin/ExamPageEditor"; //✅
+import ExamDetailPage from "./pages/Exams/ExamDetailPage"; //✅
+import AITestGenerator from "./pages/Admin/AITestGenerator"; //✅
+import NotificationManager from "./pages/Admin/NotificationManager";
 
 // Private Route for Logged in users
 function PrivateRoute({ children }) {
@@ -95,16 +93,14 @@ function App() {
           <Route path='/exams/:examSlug/study' element={<ExamContent />} />
           <Route path='/blogs' element={<BlogList />} />
           <Route path='/blogs/:slug' element={<BlogDetail />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/contact" element={<ContactUs />} />
-          <Route path="/terms" element={<TermsConditions />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/refund" element={<RefundPolicy />} />
-          <Route path="/faq" element={<FAQ />} />
+          <Route path='/about' element={<AboutUs />} />
+          <Route path='/contact' element={<ContactUs />} />
+          <Route path='/terms' element={<TermsConditions />} />
+          <Route path='/privacy' element={<PrivacyPolicy />} />
+          <Route path='/refund' element={<RefundPolicy />} />
+          <Route path='/faq' element={<FAQ />} />
           {/* <Route path="/exam/:examId" element={<ExamDetail />} /> */}
-<Route path="/exam/:slug" element={<ExamDetailPage />} />
-
-
+          <Route path='/exam/:slug' element={<ExamDetailPage />} />
           {/* User Protected Routes */}
           <Route
             path='/tests'
@@ -222,11 +218,14 @@ function App() {
               </AdminRoute>
             }
           />
-          <Route path="/admin/categories-exams" element={
-            <AdminRoute>
-              <ManageCategoriesExams />
-            </AdminRoute>
-          } />
+          <Route
+            path='/admin/categories-exams'
+            element={
+              <AdminRoute>
+                <ManageCategoriesExams />
+              </AdminRoute>
+            }
+          />
           {/* Jo route aapne alag rakha tha, use yahan merge kar diya */}
           <Route
             path='/admin/users'
@@ -236,39 +235,65 @@ function App() {
               </AdminRoute>
             }
           />
-          <Route path="/admin/create-category" element={
-            <AdminRoute>
-              <CreateCategory />
-            </AdminRoute>
-          } />
-          <Route path="/admin/create-exam" element={
-            <AdminRoute>
-              <CreateExam />
-            </AdminRoute>
-          } />
-          <Route path="/admin/exam-details/:examId" element={
-            <AdminRoute>
-              <ExamDetailsManager />
-            </AdminRoute>
-          } />
-          <Route path="/admin/exam-pages" element={
+          <Route
+            path='/admin/create-category'
+            element={
+              <AdminRoute>
+                <CreateCategory />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/create-exam'
+            element={
+              <AdminRoute>
+                <CreateExam />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/exam-details/:examId'
+            element={
+              <AdminRoute>
+                <ExamDetailsManager />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/exam-pages'
+            element={
+              <AdminRoute>
+                <ExamPagesManager />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/create-exam-page/:examId'
+            element={
+              <AdminRoute>
+                <ExamPageEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/edit-exam-page/:examId'
+            element={
+              <AdminRoute>
+                <ExamPageEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path='/admin/ai-test-generator'
+            element={
+              <AdminRoute>
+                <AITestGenerator />
+              </AdminRoute>
+            }
+          />
+          <Route path="/admin/notifications" element={
   <AdminRoute>
-    <ExamPagesManager />
-  </AdminRoute>
-} />
-<Route path="/admin/create-exam-page/:examId" element={
-  <AdminRoute>
-    <ExamPageEditor />
-  </AdminRoute>
-} />
-<Route path="/admin/edit-exam-page/:examId" element={
-  <AdminRoute>
-    <ExamPageEditor />
-  </AdminRoute>
-} />
-<Route path="/admin/ai-test-generator" element={
-  <AdminRoute>
-    <AITestGenerator />
+    <NotificationManager />
   </AdminRoute>
 } />
         </Routes>

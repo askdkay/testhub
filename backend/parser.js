@@ -11,7 +11,22 @@ const dbConfig = {
     database: process.env.DB_NAME || 'test_series_db',
     multipleStatements: true
 };
+// Keep-alive endpoint
+app.get('/ping', (req, res) => {
+    res.json({ pong: true, timestamp: new Date() });
+});
 
+// Auto ping every 10 minutes (self ping)
+if (process.env.NODE_ENV === 'production') {
+    setInterval(async () => {
+        try {
+            await fetch(`http://localhost:${PORT}/ping`);
+            console.log('Keep-alive ping sent');
+        } catch (e) {
+            console.log('Ping failed');
+        }
+    }, 10 * 60 * 1000); // 10 minutes
+}
 // Function to create slug from title
 function createSlug(title) {
     return title

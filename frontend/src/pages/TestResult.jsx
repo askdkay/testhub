@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import API from '../services/api';
 import { 
   FiCheckCircle, FiXCircle, FiAlertCircle, FiClock, 
   FiBarChart2, FiTrendingUp, FiDownload, FiShare2,
@@ -17,63 +18,174 @@ function TestResult() {
   const { testId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('summary');
-  
-  // Mock Data - Actual API se ayega
-  const resultData = {
-    user: {
-      name: 'Adit Irawan',
-      role: 'Jr UI/UX Designer',
-      department: 'Design',
-      avatar: '👨‍🎨'
-    },
-    test: {
-      name: 'Figma skill - How to make great design',
-      completedDate: 'Aug 03, 2023 · 10:00 AM',
-      totalQuestions: 20,
-      duration: '45 min',
-      category: 'Design'
-    },
-    score: {
-      correct: 24,
-      total: 33, // Total marks (20 questions * 4 = 80, but yahan 33 hai?)
-      percentage: 72,
-      halfCorrect: 1,
-      needReview: 1,
-      incorrect: 4,
-      skipped: 1,
-      timeTaken: '32s avg'
-    },
-    questions: [
-      { id: 1, status: 'correct', time: '28s', points: 4 },
-      { id: 2, status: 'correct', time: '32s', points: 4 },
-      { id: 3, status: 'correct', time: '25s', points: 4 },
-      { id: 4, status: 'correct', time: '35s', points: 4 },
-      { id: 5, status: 'correct', time: '42s', points: 4 },
-      { id: 6, status: 'correct', time: '30s', points: 4 },
-      { id: 7, status: 'correct', time: '28s', points: 4 },
-      { id: 8, status: 'correct', time: '33s', points: 4 },
-      { id: 9, status: 'correct', time: '31s', points: 4 },
-      { id: 10, status: 'correct', time: '29s', points: 4 },
-      { id: 11, status: 'correct', time: '34s', points: 4 },
-      { id: 12, status: 'correct', time: '27s', points: 4 },
-      { id: 13, status: 'correct', time: '36s', points: 4 },
-      { id: 14, status: 'correct', time: '41s', points: 4 },
-      { id: 15, status: 'half-correct', time: '45s', points: 2 },
-      { id: 16, status: 'need-review', time: '52s', points: 0 },
-      { id: 17, status: 'incorrect', time: '38s', points: 0 },
-      { id: 18, status: 'incorrect', time: '44s', points: 0 },
-      { id: 19, status: 'incorrect', time: '39s', points: 0 },
-      { id: 20, status: 'skipped', time: '0s', points: 0 }
-    ],
-    projects: [
-      { name: 'Figma basic', progress: 80 },
-      { name: 'Fikri studio', progress: 45 }
-    ],
-    recommendations: [
-      'Practice more UI components',
-      'Review color theory basics',
-      'Take typography workshop'
-    ]
+  const [loading, setLoading] = useState(true);
+  const [resultData, setResultData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchTestResult();
+  }, [testId]);
+
+  const fetchTestResult = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch test attempt data
+      const attemptRes = await API.get(`/tests/${testId}/result`);
+      const attemptData = attemptRes.data;
+      
+      // Fetch test details
+      const testRes = await API.get(`/tests/${testId}`);
+      const testData = testRes.data;
+      
+      // Fetch user details
+      const userRes = await API.get('/auth/profile');
+      const userData = userRes.data;
+      
+      // Fetch all questions with user answers
+      const questionsRes = await API.get(`/tests/${testId}/questions-with-answers`);
+      const questionsData = questionsRes.data;
+      
+      // Calculate statistics
+      const totalQuestions = questionsData.length;
+      const totalMarks = questionsData.reduce((sum, q) => sum + (q.marks || 4), 0);
+      const obtainedMarks = questionsData.reduce((sum, q) => {
+        if (q.user_answer && q.user_answer === q.correct_answer) {
+          return sum + (q.marks || 4);
+        } else if (q.user_answer && q.status === 'half-correct') {
+          return sum + ((q.marks || 4) / 2);
+        }
+        return sum;
+      }, 0);
+      const percentage = totalMarks > 0 ? Math.round((obtainedMarks / totalMarks) * 100) : 0;
+      
+      // Count by status
+      const correctCount = questionsData.filter(q => q.user_answer && q.user_answer === q.correct_answer).length;
+      const incorrectCount = questionsData.filter(q => q.user_answer && q.user_answer !== q.correct_answer && q.status !== 'skipped' && q.status !== 'half-correct').length;
+      const skippedCount = questionsData.filter(q => !q.user_answer || q.status === 'skipped').length;
+      const halfCorrectCount = questionsData.filter(q => q.status === 'half-correct').length;
+      const needReviewCount = questionsData.filter(q => q.marked_for_review === 1).length;
+      
+      // Calculate average time per question
+      const avgTime = questionsData.reduce((sum, q) => sum + (q.time_taken || 0), 0) / totalQuestions;
+      const avgTimeFormatted = `${Math.floor(avgTime / 60)}m ${Math.floor(avgTime % 60)}s`;
+      
+      // Prepare questions array for display
+      const formattedQuestions = questionsData.map((q, index) => {
+        let status = 'unanswered';
+        if (q.user_answer) {
+          if (q.user_answer === q.correct_answer) {
+            status = 'correct';
+          } else if (q.status === 'half-correct') {
+            status = 'half-correct';
+          } else {
+            status = 'incorrect';
+          }
+        } else if (q.marked_for_review) {
+          status = 'need-review';
+        } else {
+          status = 'skipped';
+        }
+        
+        return {
+          id: index + 1,
+          questionId: q.id,
+          status: status,
+          time: q.time_taken ? `${Math.floor(q.time_taken / 60)}m ${q.time_taken % 60}s` : '0s',
+          points: (q.user_answer && q.user_answer === q.correct_answer) ? (q.marks || 4) : 0,
+          question_text: q.question_text,
+          user_answer: q.user_answer,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation
+        };
+      });
+      
+      // Prepare weak topics
+      const topicPerformance = {};
+      questionsData.forEach(q => {
+        const topic = q.topic || 'General';
+        if (!topicPerformance[topic]) {
+          topicPerformance[topic] = { total: 0, correct: 0 };
+        }
+        topicPerformance[topic].total++;
+        if (q.user_answer && q.user_answer === q.correct_answer) {
+          topicPerformance[topic].correct++;
+        }
+      });
+      
+      const weakTopics = Object.entries(topicPerformance)
+        .filter(([, data]) => (data.correct / data.total) < 0.5)
+        .map(([topic, data]) => ({
+          topic,
+          score: Math.round((data.correct / data.total) * 100)
+        }));
+      
+      const strongTopics = Object.entries(topicPerformance)
+        .filter(([, data]) => (data.correct / data.total) >= 0.7)
+        .map(([topic, data]) => ({
+          topic,
+          score: Math.round((data.correct / data.total) * 100)
+        }));
+      
+      // Generate recommendations
+      const recommendations = [];
+      if (weakTopics.length > 0) {
+        recommendations.push(`Focus on improving: ${weakTopics.map(t => t.topic).join(', ')}`);
+      }
+      if (avgTime > 90) {
+        recommendations.push('Work on time management - you are spending too much time per question');
+      }
+      if (skippedCount > 5) {
+        recommendations.push('Try not to skip questions. Attempt all questions for better score');
+      }
+      if (percentage < 60) {
+        recommendations.push('Review basic concepts and take more practice tests');
+      } else if (percentage < 75) {
+        recommendations.push('Good attempt! Practice more to reach excellence');
+      } else {
+        recommendations.push('Excellent performance! Keep up the momentum');
+      }
+      
+      // Final result object
+      setResultData({
+        user: {
+          name: userData.name,
+          email: userData.email,
+          avatar: userData.name?.charAt(0).toUpperCase() || '👤'
+        },
+        test: {
+          id: testData.id,
+          name: testData.title,
+          completedDate: attemptData.completed_at ? new Date(attemptData.completed_at).toLocaleString() : new Date().toLocaleString(),
+          totalQuestions: totalQuestions,
+          duration: testData.duration,
+          category: testData.category
+        },
+        score: {
+          obtained: obtainedMarks,
+          total: totalMarks,
+          percentage: percentage,
+          correct: correctCount,
+          halfCorrect: halfCorrectCount,
+          needReview: needReviewCount,
+          incorrect: incorrectCount,
+          skipped: skippedCount,
+          timeTaken: avgTimeFormatted,
+          rank: attemptData.rank || 'N/A'
+        },
+        questions: formattedQuestions,
+        weakTopics: weakTopics,
+        strongTopics: strongTopics,
+        recommendations: recommendations,
+        topicPerformance: topicPerformance
+      });
+      
+    } catch (error) {
+      console.error('Error fetching test result:', error);
+      setError(error.response?.data?.message || 'Failed to load test results');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -97,6 +209,32 @@ function TestResult() {
       default: return null;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-deep-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-deep-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️ {error}</div>
+          <button 
+            onClick={() => navigate('/tests')}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg"
+          >
+            Back to Tests
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!resultData) return null;
 
   return (
     <div className="min-h-screen bg-deep-black text-white font-['Inter'] relative overflow-hidden">
@@ -140,22 +278,32 @@ function TestResult() {
             </div>
             
             <div className="flex gap-3">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
+                onClick={() => {
+                  const dataStr = JSON.stringify(resultData, null, 2);
+                  const blob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `test-result-${testId}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-green-500/50 transition-all"
               >
                 <FiDownload className="text-gray-400" />
                 <span className="text-sm">Download</span>
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Link copied to clipboard!');
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-glass-bg border border-glass-border rounded-xl hover:border-green-500/50 transition-all"
               >
                 <FiShare2 className="text-gray-400" />
                 <span className="text-sm">Share</span>
-              </motion.button>
+              </button>
             </div>
           </motion.div>
 
@@ -172,13 +320,13 @@ function TestResult() {
               {/* User Card */}
               <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center text-3xl">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center text-3xl font-bold">
                     {resultData.user.avatar}
                   </div>
                   <div>
                     <h2 className="text-xl font-bold">{resultData.user.name}</h2>
-                    <p className="text-gray-400 text-sm">{resultData.user.department}</p>
-                    <p className="text-gray-500 text-xs">{resultData.user.role}</p>
+                    <p className="text-gray-400 text-sm">{resultData.user.email}</p>
+                    <p className="text-gray-500 text-xs">Student</p>
                   </div>
                 </div>
                 
@@ -191,10 +339,14 @@ function TestResult() {
                     <span className="text-gray-400">Total Questions</span>
                     <span className="text-gray-300">{resultData.test.totalQuestions}</span>
                   </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-gray-400">Your Rank</span>
+                    <span className="text-yellow-400 font-bold">{resultData.score.rank}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Stats Card - Exactly like image */}
+              {/* Stats Card */}
               <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <FaBrain className="text-green-400" />
@@ -202,7 +354,6 @@ function TestResult() {
                 </h3>
                 
                 <div className="space-y-4">
-                  {/* Correct */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -214,7 +365,6 @@ function TestResult() {
                     </div>
                   </div>
                   
-                  {/* Half Correct */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
@@ -222,11 +372,10 @@ function TestResult() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-yellow-500">{resultData.score.halfCorrect}</span>
-                      <span className="text-sm text-gray-500">· 3%</span>
+                      <span className="text-sm text-gray-500">· {Math.round((resultData.score.halfCorrect / resultData.test.totalQuestions) * 100)}%</span>
                     </div>
                   </div>
                   
-                  {/* Need Review */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
@@ -234,11 +383,10 @@ function TestResult() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-orange-500">{resultData.score.needReview}</span>
-                      <span className="text-sm text-gray-500">· 3%</span>
+                      <span className="text-sm text-gray-500">· {Math.round((resultData.score.needReview / resultData.test.totalQuestions) * 100)}%</span>
                     </div>
                   </div>
                   
-                  {/* Incorrect */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-red-500 rounded-full"></span>
@@ -246,11 +394,10 @@ function TestResult() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-red-500">{resultData.score.incorrect}</span>
-                      <span className="text-sm text-gray-500">· 12%</span>
+                      <span className="text-sm text-gray-500">· {Math.round((resultData.score.incorrect / resultData.test.totalQuestions) * 100)}%</span>
                     </div>
                   </div>
                   
-                  {/* Skipped */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-gray-500 rounded-full"></span>
@@ -258,16 +405,22 @@ function TestResult() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-gray-500">{resultData.score.skipped}</span>
-                      <span className="text-sm text-gray-500">· 3%</span>
+                      <span className="text-sm text-gray-500">· {Math.round((resultData.score.skipped / resultData.test.totalQuestions) * 100)}%</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Progress Circle */}
+                {/* Progress Bar */}
                 <div className="mt-6 pt-6 border-t border-glass-border">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Overall Score</span>
-                    <span className="text-2xl font-bold text-green-400">{resultData.score.percentage}%</span>
+                    <span className="text-gray-400">Score</span>
+                    <span className="text-2xl font-bold text-green-400">
+                      {resultData.score.obtained}/{resultData.score.total}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-gray-400">Percentage</span>
+                    <span className="text-green-400">{resultData.score.percentage}%</span>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-2">
                     <motion.div
@@ -280,30 +433,57 @@ function TestResult() {
                 </div>
               </div>
 
-              {/* Projects Card */}
-              <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <FaRocket className="text-blue-400" />
-                  Projects
-                </h3>
-                
-                <div className="space-y-4">
-                  {resultData.projects.map((project, index) => (
-                    <div key={index}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-300">{project.name}</span>
-                        <span className="text-gray-400">{project.progress}%</span>
+              {/* Weak Topics */}
+              {resultData.weakTopics.length > 0 && (
+                <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FiTarget className="text-red-400" />
+                    Topics to Improve
+                  </h3>
+                  <div className="space-y-3">
+                    {resultData.weakTopics.map((topic, idx) => (
+                      <div key={idx}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-300">{topic.topic}</span>
+                          <span className="text-red-400">{topic.score}%</span>
+                        </div>
+                        <div className="w-full bg-gray-800 rounded-full h-1.5">
+                          <div 
+                            className="h-1.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500"
+                            style={{ width: `${topic.score}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-800 rounded-full h-1.5">
-                        <div 
-                          className="h-1.5 rounded-full bg-gradient-to-r from-green-500 to-blue-500"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Strong Topics */}
+              {resultData.strongTopics.length > 0 && (
+                <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FaRocket className="text-green-400" />
+                    Strong Areas
+                  </h3>
+                  <div className="space-y-3">
+                    {resultData.strongTopics.map((topic, idx) => (
+                      <div key={idx}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-300">{topic.topic}</span>
+                          <span className="text-green-400">{topic.score}%</span>
+                        </div>
+                        <div className="w-full bg-gray-800 rounded-full h-1.5">
+                          <div 
+                            className="h-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"
+                            style={{ width: `${topic.score}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* AI Training Card */}
               <div className="backdrop-blur-xl bg-gradient-to-br from-green-500/20 via-blue-500/20 to-purple-500/20 border border-green-500/30 rounded-3xl p-6">
@@ -312,12 +492,12 @@ function TestResult() {
                     <FaBrain />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold mb-1">Get Training AI</h3>
+                    <h3 className="font-bold mb-1">AI Performance Analysis</h3>
                     <p className="text-sm text-gray-300 mb-3">
-                      Use AI in every action on your Training webapp
+                      Get personalized study plan based on your performance
                     </p>
                     <button className="text-green-400 text-sm font-semibold hover:text-green-300 transition-colors">
-                      Try it now →
+                      Generate Report →
                     </button>
                   </div>
                 </div>
@@ -334,9 +514,9 @@ function TestResult() {
               {/* Test Info Card */}
               <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-3xl p-6">
                 <h2 className="text-xl font-bold mb-2">{resultData.test.name}</h2>
-                <p className="text-gray-400 text-sm mb-4">Finished {resultData.test.completedDate} · 20 Questions</p>
+                <p className="text-gray-400 text-sm mb-4">Finished {resultData.test.completedDate} · {resultData.test.totalQuestions} Questions</p>
                 
-                {/* Question Numbers Grid - Exactly like image */}
+                {/* Question Numbers Grid */}
                 <div className="grid grid-cols-5 md:grid-cols-10 gap-2 mb-6">
                   {resultData.questions.map((q) => (
                     <motion.div
@@ -395,11 +575,10 @@ function TestResult() {
                 <div className="p-6">
                   {activeTab === 'summary' && (
                     <div className="space-y-6">
-                      {/* Question List - Exactly like image */}
                       <div className="space-y-3">
                         <h3 className="font-semibold mb-3 flex items-center gap-2">
                           <FaCheckDouble className="text-green-400" />
-                          Quiz
+                          Question Summary
                         </h3>
                         {resultData.questions.map((q) => (
                           <motion.div
@@ -413,7 +592,7 @@ function TestResult() {
                                 {q.status === 'correct' ? 'Correct' : 
                                  q.status === 'half-correct' ? 'Half Correct' :
                                  q.status === 'need-review' ? 'Need Review' :
-                                 q.status === 'incorrect' ? 'Incorrect' : 'Skipped'} {q.id}
+                                 q.status === 'incorrect' ? 'Incorrect' : 'Skipped'} Question {q.id}
                               </span>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-gray-400">
@@ -426,45 +605,38 @@ function TestResult() {
                           </motion.div>
                         ))}
                       </div>
-
-                      {/* Sample Question - Like in image */}
-                      <div className="mt-6 p-4 bg-black/40 rounded-xl border border-glass-border">
-                        <p className="text-sm text-gray-300 mb-2">
-                          What does UI stand for in the context of design?
-                        </p>
-                        <div className="flex gap-4 text-xs text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <FiClock size={12} />
-                            Time 32s
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <FaStar size={12} className="text-yellow-500" />
-                            30 points
-                          </span>
-                        </div>
-                      </div>
                     </div>
                   )}
 
                   {activeTab === 'questions' && (
                     <div className="space-y-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="p-4 bg-black/30 rounded-xl border border-glass-border">
-                          <p className="font-medium mb-2">Question {i}: Which aspect of UI design involves choosing colors, typography, and creating icons?</p>
+                      {resultData.questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-black/30 rounded-xl border border-glass-border">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="font-medium">Question {q.id}: {q.question_text}</p>
+                            <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(q.status)}`}>
+                              {q.status.toUpperCase()}
+                            </span>
+                          </div>
                           <div className="grid grid-cols-2 gap-2 mt-3">
-                            <div className="flex items-center gap-2 text-sm">
-                              <input type="radio" className="text-green-500" /> A. Layout
+                            <div className={`flex items-center gap-2 text-sm p-2 rounded ${q.correct_answer === 'A' ? 'bg-green-500/20 border border-green-500' : ''}`}>
+                              <input type="radio" checked={q.user_answer === 'A'} readOnly className="text-green-500" /> A. Option A
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <input type="radio" className="text-green-500" /> B. Visual Design ✓
+                            <div className={`flex items-center gap-2 text-sm p-2 rounded ${q.correct_answer === 'B' ? 'bg-green-500/20 border border-green-500' : ''}`}>
+                              <input type="radio" checked={q.user_answer === 'B'} readOnly className="text-green-500" /> B. Option B
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <input type="radio" className="text-green-500" /> C. Interaction
+                            <div className={`flex items-center gap-2 text-sm p-2 rounded ${q.correct_answer === 'C' ? 'bg-green-500/20 border border-green-500' : ''}`}>
+                              <input type="radio" checked={q.user_answer === 'C'} readOnly className="text-green-500" /> C. Option C
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <input type="radio" className="text-green-500" /> D. Information
+                            <div className={`flex items-center gap-2 text-sm p-2 rounded ${q.correct_answer === 'D' ? 'bg-green-500/20 border border-green-500' : ''}`}>
+                              <input type="radio" checked={q.user_answer === 'D'} readOnly className="text-green-500" /> D. Option D
                             </div>
                           </div>
+                          {q.explanation && (
+                            <div className="mt-3 p-2 bg-blue-500/10 rounded-lg text-sm text-blue-300">
+                              <strong>Explanation:</strong> {q.explanation}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -475,13 +647,23 @@ function TestResult() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-black/30 rounded-xl border border-glass-border">
                           <h4 className="text-sm text-gray-400 mb-2">Time Spent</h4>
-                          <p className="text-2xl font-bold">32s</p>
+                          <p className="text-2xl font-bold">{resultData.score.timeTaken}</p>
                           <p className="text-xs text-gray-500">avg per question</p>
                         </div>
                         <div className="p-4 bg-black/30 rounded-xl border border-glass-border">
                           <h4 className="text-sm text-gray-400 mb-2">Accuracy</h4>
                           <p className="text-2xl font-bold">{resultData.score.percentage}%</p>
                           <p className="text-xs text-gray-500">correct answers</p>
+                        </div>
+                        <div className="p-4 bg-black/30 rounded-xl border border-glass-border">
+                          <h4 className="text-sm text-gray-400 mb-2">Your Score</h4>
+                          <p className="text-2xl font-bold">{resultData.score.obtained}/{resultData.score.total}</p>
+                          <p className="text-xs text-gray-500">out of total marks</p>
+                        </div>
+                        <div className="p-4 bg-black/30 rounded-xl border border-glass-border">
+                          <h4 className="text-sm text-gray-400 mb-2">All India Rank</h4>
+                          <p className="text-2xl font-bold text-yellow-400">{resultData.score.rank}</p>
+                          <p className="text-xs text-gray-500">among all students</p>
                         </div>
                       </div>
 

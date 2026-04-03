@@ -25,6 +25,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/exams', examCategoryRoutes);// New route for exams categories
 app.use('/api/examDetails', require('./routes/examDetails'));
 app.use('/api/ai-generator', require('./routes/aiGenerator'));
+app.use('/api/profile', require('./routes/profile'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 
 // Test route
@@ -39,17 +41,17 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    // console.error(err.stack);
     res.status(500).json({ message: 'Something broke!', error: err.message });
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log('Registered routes:');
-    console.log('- /api/auth');
-    console.log('- /api/tests');
-    console.log('- /api/admin');
-    console.log('- /api/content');
-    console.log('- /api/blogs');
+    // console.log('Registered routes:');
+    // console.log('- /api/auth');
+    // console.log('- /api/tests');
+    // console.log('- /api/admin');
+    // console.log('- /api/content');
+    // console.log('- /api/blogs');
 });

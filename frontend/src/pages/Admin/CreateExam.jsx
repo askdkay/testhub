@@ -26,7 +26,7 @@ function CreateExam() {
     }
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     
@@ -55,11 +55,14 @@ function CreateExam() {
       
       alert(`✅ Exam Created Successfully!\n\nExam ID: ${res.data.id}\nExam Name: ${formData.name}\nURL: /exam/${slug}`);
       
-      // Reset form
+      // Reset form (Waise iski zarurat nahi kyunki page change ho jayega, par rakh sakte ho)
       setFormData({
         category_id: '',
         name: ''
       });
+
+      // 👇 YAHAN ADD KIYA HAI NAVIGATE CODE 👇
+      navigate('/admin/categories-exams');
       
     } catch (error) {
       console.error('Error creating exam:', error);

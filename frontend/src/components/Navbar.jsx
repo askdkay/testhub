@@ -2,16 +2,40 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiBookOpen, FiChevronDown, FiMenu, FiX, FiUser, FiSettings, FiLogOut, FiBell, FiHelpCircle, FiAward } from "react-icons/fi";
-import { FaUserCircle } from "react-icons/fa";
+import { FiChevronDown, FiMenu, FiX, FiUser, FiSettings, FiLogOut } from "react-icons/fi";
+import API from "../services/api"; // Added API import
+import NotificationBell from './NotificationBell';
+
 
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [profileImage, setProfileImage] = useState(null); // Added profile image state
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch the latest profile image when the user is available
+  useEffect(() => {
+    const fetchUserImage = async () => {
+      if (user) {
+        try {
+          const res = await API.get("/profile/profile");
+          if (res.data && res.data.profile_image) {
+            // Ensure the path starts with a slash
+            const imagePath = res.data.profile_image.startsWith("/") ? res.data.profile_image : `/${res.data.profile_image}`;
+
+            setProfileImage(imagePath);
+          }
+        } catch (error) {
+          console.error("Failed to fetch profile image for Navbar:", error);
+        }
+      }
+    };
+
+    fetchUserImage();
+  }, [user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,10 +45,15 @@ function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Get user initials for avatar
+  // Get user initials for avatar (using first_name + last_name)
   const getUserInitials = () => {
-    if (!user || !user.name) return "U";
-    return user.name.charAt(0).toUpperCase();
+    if (!user) return "U";
+    if (user.first_name && user.last_name) {
+      return `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
+    }
+    if (user.name) return user.name.charAt(0).toUpperCase();
+    if (user.first_name) return user.first_name.charAt(0).toUpperCase();
+    return "U";
   };
 
   const navItems = [
@@ -102,11 +131,12 @@ function Navbar() {
 
             {/* User Menu / Auth Buttons */}
             <div className='hidden md:flex items-center space-x-4'>
+              <NotificationBell />
               {user ? (
                 <div className='relative'>
                   {/* User Avatar Button */}
                   <button onClick={() => setShowUserMenu(!showUserMenu)} className='flex items-center space-x-2 focus:outline-none'>
-                    <div className='w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all'>{getUserInitials()}</div>
+                    {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-10 h-10 rounded-full object-cover border-2 border-green-500/30 shadow-lg hover:shadow-green-500/30 transition-all' /> : <div className='w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all'>{getUserInitials()}</div>}
                     <FiChevronDown className={`text-gray-400 transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
                   </button>
 
@@ -117,7 +147,7 @@ function Navbar() {
                         {/* User Info Header */}
                         <div className='p-4 border-b border-white/10'>
                           <div className='flex items-center space-x-3'>
-                            <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>
+                            {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>}
                             <div>
                               <p className='text-white font-semibold'>{user.name}</p>
                               <p className='text-gray-400 text-xs'>{user.email}</p>
@@ -148,24 +178,8 @@ function Navbar() {
                             <FiSettings className='text-blue-400' />
                             <span>Settings</span>
                           </button>
-                          {/* Admin Panel - Mobile */}
-                          {user.role === "admin" && (
-                            <Link to='/admin' className='flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-2' onClick={() => setIsOpen(false)}>
-                              <FiAward className='text-purple-400' />
-                              <span>Admin Panel</span>
-                            </Link>
-                          )}
-                          <button
-                            onClick={() => {
-                              navigate("/my-exams");
-                              setShowUserMenu(false);
-                            }}
-                            className='w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-all'
-                          >
-                            <FiAward className='text-yellow-400' />
-                            <span>My Exams</span>
-                          </button>
-
+                   
+                          
                           <div className='border-t border-white/10 my-2'></div>
 
                           <button onClick={handleLogout} className='w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all'>
@@ -182,12 +196,6 @@ function Navbar() {
                   <Link to='/login' className='bg-gradient-to-r from-green-500 to-blue-600 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 hover:scale-105'>
                     Log In
                   </Link>
-                  {/* <Link
-                    to="/register"
-                    className="bg-gradient-to-r from-green-500 to-blue-600 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 hover:scale-105"
-                  >
-                    Get Started
-                  </Link> */}
                 </>
               )}
             </div>
@@ -208,7 +216,7 @@ function Navbar() {
               {/* Mobile User Info */}
               {user && (
                 <div className='flex items-center space-x-3 p-3 bg-white/5 rounded-xl mb-3'>
-                  <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>
+                  {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>}
                   <div>
                     <p className='text-white font-semibold'>{user.name}</p>
                     <p className='text-gray-400 text-xs'>{user.email}</p>
@@ -250,10 +258,7 @@ function Navbar() {
                       <FiSettings className='text-blue-400' />
                       <span>Settings</span>
                     </Link>
-                    <Link to='/my-exams' className='flex items-center space-x-3 text-gray-300 hover:text-white px-4 py-2' onClick={() => setIsOpen(false)}>
-                      <FiAward className='text-yellow-400' />
-                      <span>My Exams</span>
-                    </Link>
+                    
                     <button
                       onClick={() => {
                         handleLogout();
@@ -270,13 +275,6 @@ function Navbar() {
                     <Link to='/login' className='block text-gray-300 hover:text-white px-4 py-2' onClick={() => setIsOpen(false)}>
                       Log In
                     </Link>
-                    {/* <Link
-                      to="/register"
-                      className="block bg-gradient-to-r from-green-500 to-blue-600 text-white px-4 py-2 rounded-full text-center"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Get Started
-                    </Link> */}
                   </>
                 )}
               </div>

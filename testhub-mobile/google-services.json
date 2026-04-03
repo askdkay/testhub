@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "947764922104",
+    "project_id": "testhub-otp",
+    "storage_bucket": "testhub-otp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947764922104:android:8d5504a3d3d4276b7add0d",
+        "android_client_info": {
+          "package_name": "com.testhub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2KVYRY0zd9421JVzQQxwWFtHDs5XtUDc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

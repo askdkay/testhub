@@ -8,9 +8,9 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../config/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import Icon from 'react-native-vector-icons/Ionicons';
-import api from '../services/api';
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -36,17 +36,18 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const res = await api.post('/auth/register', {
-        name,
-        email,
-        password,
-        phone: '',
-        exam_preparation: 'General',
-      });
-      await AsyncStorage.setItem('token', res.data.token);
-      navigation.replace('Home');
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // After registration, you can save name to Firestore if needed
+      console.log('User registered:', userCredential.user.email);
+      // Navigation handled by auth state listener
     } catch (error) {
-      Alert.alert('Registration Failed', error.response?.data?.message || 'Something went wrong');
+      let message = 'Registration failed';
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'Email already registered';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Invalid email address';
+      }
+      Alert.alert('Registration Failed', message);
     } finally {
       setLoading(false);
     }
@@ -124,6 +125,22 @@ export default function RegisterScreen({ navigation }) {
 
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
         <Text style={{ color: '#f97316', textAlign: 'center' }}>Already have an account? Login</Text>
+      </TouchableOpacity>
+
+      {/* OR Divider */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 20 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#333' }} />
+        <Text style={{ color: '#666', marginHorizontal: 10 }}>OR</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#333' }} />
+      </View>
+
+      {/* Phone Register Option */}
+      <TouchableOpacity
+        style={{ backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#f97316', padding: 15, borderRadius: 30, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+        onPress={() => navigation.navigate('PhoneLogin')}
+      >
+        <Icon name="call-outline" size={20} color="#f97316" />
+        <Text style={{ color: '#f97316', fontWeight: 'bold', marginLeft: 10 }}>Register with Phone Number</Text>
       </TouchableOpacity>
     </ScrollView>
   );

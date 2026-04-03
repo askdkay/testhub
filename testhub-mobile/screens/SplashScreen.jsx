@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import {
   View,
   Text,
-  Image,
+  // Image,
   Animated,
   Dimensions,
   StatusBar,

@@ -57,10 +57,10 @@ function TakeTest() {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            console.log('Current token:', token);
+            // console.log('Current token:', token);
             
             const res = await API.get(`/tests/${id}`);
-            console.log('Test data loaded:', res.data);
+            // console.log('Test data loaded:', res.data);
             
             if (!res.data.questions) {
                 res.data.questions = [];
@@ -69,8 +69,8 @@ function TakeTest() {
             setTest(res.data);
             setError('');
         } catch (error) {
-            console.error('Error loading test:', error);
-            console.error('Error response:', error.response?.data);
+            // console.error('Error loading test:', error);
+            // console.error('Error response:', error.response?.data);
             setError('Failed to load test. Please try again.');
         } finally {
             setLoading(false);
@@ -92,20 +92,28 @@ function TakeTest() {
         );
     };
 
-    const handleSubmit = async () => {
-        // Calculate score
-        let score = 0;
-        test.questions.forEach(q => {
-            if (answers[q.id] === q.correct_answer) {
-                score += 4;
-            }
-        });
+ const handleSubmit = async () => {
+        try {
+            setLoading(true); // Loading spinner dikhayenge submit hote time
+            
+            // Kitna time laga test dene me (seconds me)
+            const timeSpent = (test.duration * 60) - timeLeft;
 
-        // Show result alert
-        alert(`Test completed! Your score: ${score}/${test.questions.length * 4}`);
-        
-        // Redirect to result page
-        navigate(`/test-result/${id}`);
+            // 🚀 BACKEND KO DATA BHEJO
+            await API.post(`/tests/${id}/submit`, {
+                answers: answers,
+                timeSpent: timeSpent,
+                markedForReview: markedForReview
+            });
+
+            alert('Test submitted successfully!');
+            navigate(`/test-result/${id}`);
+
+        } catch (error) {
+            // console.error('Error submitting test:', error);
+            alert('❌ Failed to submit test. Please check your connection.');
+            setLoading(false);
+        }
     };
 
     const formatTime = (seconds) => {

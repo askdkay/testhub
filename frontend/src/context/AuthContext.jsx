@@ -1,5 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import API from '../services/api';
+import { auth, googleProvider, setupRecaptcha } from '../services/firebase';
+import { signInWithPopup, signInWithPhoneNumber } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -13,93 +15,139 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    // 1. Initial loading ko TRUE rakhein taaki page load hote hi redirect na ho
     const [loading, setLoading] = useState(true);
 
-    // 2. NAYA LOGIC: Page load hone par token check karna
     useEffect(() => {
         const checkLoggedInUser = async () => {
             const token = localStorage.getItem('token');
-            const storedUser = localStorage.getItem('user'); // User data bhi check karein
+            const storedUser = localStorage.getItem('user');
 
             if (token && storedUser) {
-                // Agar token aur user data dono hain, toh direct state mein set kar dein
                 setUser(JSON.parse(storedUser));
                 setLoading(false);
             } else if (token) {
-                // Agar sirf token hai, toh backend se user ka data mangwayein
                 try {
-                    // Dhyan dein: Iske liye aapke backend me '/auth/me' ya '/auth/profile' API honi chahiye
                     const res = await API.get('/auth/me'); 
                     setUser(res.data.user);
                 } catch (error) {
-                    console.error('Session expired or invalid token');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    setUser(null);
+                    console.error('Session expired');
+                    logout();
                 } finally {
                     setLoading(false);
                 }
             } else {
-                // Koi token nahi hai matlab user logged out hai
                 setLoading(false);
             }
         };
-
         checkLoggedInUser();
     }, []);
 
-    // Login function
     const login = async (email, password) => {
+        // ... (Aapka purana login logic same rahega) ...
         setLoading(true);
         try {
             const res = await API.post('/auth/login', { email, password });
-            localStorage.setItem('token', res.data.token);
-            // 3. User object ko bhi local storage me save karein taaki refresh pe data mile
-            localStorage.setItem('user', JSON.stringify(res.data.user)); 
-            setUser(res.data.user);
+            saveSession(res.data.token, res.data.user);
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || 'Login failed' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- NAYA: GOOGLE LOGIN LOGIC ---
+    const loginWithGoogle = async () => {
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const firebaseUser = result.user;
+            
+            // Firebase se data lekar apne custom backend ko bhejein
+            const res = await API.post('/auth/social-login', {
+                email: firebaseUser.email,
+                name: firebaseUser.displayName,
+                uid: firebaseUser.uid,
+                provider: 'google'
+            });
+
+            saveSession(res.data.token, res.data.user);
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.message || 'Google Login Failed' };
+        }
+    };
+
+    // --- NAYA: PHONE AUTH LOGIC ---
+    const sendOTP = async (phoneNumber) => {
+        try {
+            setupRecaptcha();
+            const appVerifier = window.recaptchaVerifier;
+            const formatPhone = "+" + phoneNumber; // Ex: +919876543210
+            const confirmationResult = await signInWithPhoneNumber(auth, formatPhone, appVerifier);
+            window.confirmationResult = confirmationResult;
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.message || 'Failed to send OTP' };
+        }
+    };
+
+    const verifyOTP = async (otp) => {
+        try {
+            const result = await window.confirmationResult.confirm(otp);
+            const firebaseUser = result.user;
+
+            // Verified phone number apne backend me bhej kar login/register karwayein
+            const res = await API.post('/auth/social-login', {
+                phone: firebaseUser.phoneNumber,
+                uid: firebaseUser.uid,
+                provider: 'phone'
+            });
+
+            saveSession(res.data.token, res.data.user);
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: 'Invalid OTP' };
+        }
+    };
+
+    // Helper function
+    const saveSession = (token, userData) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData)); 
+        setUser(userData);
+    };
+
+// --- ADMIN LOGIN LOGIC ---
+    const adminLogin = async (email, password) => {
+        setLoading(true);
+        try {
+            const res = await API.post('/auth/login', { email, password });
+            
+            // YAHAN CHECK KAREIN KI KYA WO ADMIN HAI?
+            if (res.data.user.role !== 'admin') {
+                setLoading(false);
+                return { success: false, message: 'Access Denied: You are not an Admin.' };
+            }
+
+            // Agar admin hai, tabhi token aur data save karein
+            saveSession(res.data.token, res.data.user);
             return { success: true };
         } catch (error) {
             return { 
                 success: false, 
-                message: error.response?.data?.message || 'Login failed' 
+                message: error.response?.data?.message || 'Admin Login failed' 
             };
         } finally {
             setLoading(false);
         }
     };
-const adminLogin = async (email, password) => {
-    setLoading(true);
-    try {
-        const res = await API.post('/auth/login', { email, password });
-        
-        // YAHAN CHECK KAREIN KI KYA WO ADMIN HAI?
-        if (res.data.user.role !== 'admin') {
-            return { success: false, message: 'Access Denied: You are not an Admin.' };
-        }
 
-        // Agar admin hai, tabhi token aur data save karein
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        setUser(res.data.user);
-        return { success: true };
-    } catch (error) {
-        return { 
-            success: false, 
-            message: error.response?.data?.message || 'Admin Login failed' 
-        };
-    } finally {
-        setLoading(false);
-    }
-};
-    // Register function
+    // --- REGISTER LOGIC ---
     const register = async (userData) => {
         setLoading(true);
         try {
             const res = await API.post('/auth/register', userData);
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-            setUser(res.data.user);
+            saveSession(res.data.token, res.data.user);
             return { success: true };
         } catch (error) {
             return { 
@@ -111,21 +159,17 @@ const adminLogin = async (email, password) => {
         }
     };
 
-    // Logout function
+
+
     const logout = () => {
         localStorage.removeItem('token');
-        localStorage.removeItem('user'); // Logout pe user data bhi hata dein
+        localStorage.removeItem('user');
         setUser(null);
     };
 
-    // Context value
     const value = {
-        user,
-        login,
-        register,
-        adminLogin, // Admin login ke liye bhi same function use kar sakte hain, backend me role check hoga
-        logout,
-        loading
+        user, login, register, adminLogin, logout, loading,
+        loginWithGoogle, sendOTP, verifyOTP // Naye functions export kiye
     };
 
     return (
