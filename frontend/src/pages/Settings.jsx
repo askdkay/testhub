@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import ImageCropModal from '../components/ImageCropModal';
+import imageCompression from 'browser-image-compression';
+
 import { 
   FiUser, FiMail, FiPhone, FiMapPin, FiEdit2,
   FiSave, FiCamera, FiBookOpen, FiSettings,
@@ -71,9 +73,9 @@ function Settings() {
       // Extract exam names from the response
       const examNames = res.data.map(exam => exam.name);
       setExamOptions(examNames);
-      console.log('📚 Exams fetched:', examNames.length);
+      // console.log('📚 Exams fetched:', examNames.length);
     } catch (error) {
-      console.error('Error fetching exams:', error);
+      // console.error('Error fetching exams:', error);
       // Fallback options if API fails
       setExamOptions(['SSC CGL', 'UPSC Civil Services', 'IBPS PO', 'RRB NTPC', 'Rajasthan CET', 'REET', 'RPSC']);
     } finally {
@@ -97,7 +99,7 @@ function Settings() {
         setProfileImage(data.profile_image);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      // console.error('Error fetching profile:', error);
     }
   };
 
@@ -111,21 +113,50 @@ function Settings() {
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageSelect = (e) => {
+const handleImageSelect = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 200 * 1024) {
-        setMessage({ type: 'error', text: 'Image size must be less than 200KB' });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempImage(reader.result);
-        setShowCropModal(true);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    // Show loading
+    setLoading(true);
+    setMessage({ type: 'info', text: 'Compressing image...' });
+    
+    try {
+        // Compression options
+        const options = {
+            maxSizeMB: 0.1,        // Target size: 100KB (0.1MB)
+            maxWidthOrHeight: 500,  // Max dimension: 500px
+            useWebWorker: true,     // Faster compression
+            fileType: 'image/jpeg',  // Convert to JPEG for smaller size
+            initialQuality: 0.7      // 70% quality
+        };
+        
+        // Compress image
+        const compressedFile = await imageCompression(file, options);
+        
+        // Check final size
+        const finalSizeKB = compressedFile.size / 1024;
+        // console.log(`Original: ${(file.size / 1024 / 1024).toFixed(2)}MB → Compressed: ${finalSizeKB.toFixed(2)}KB`);
+        
+        if (finalSizeKB > 200) {
+            setMessage({ type: 'warning', text: `Image compressed to ${finalSizeKB.toFixed(0)}KB, still above 200KB limit` });
+        }
+        
+        // Read and crop
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setTempImage(reader.result);
+            setShowCropModal(true);
+            setLoading(false);
+        };
+        reader.readAsDataURL(compressedFile);
+        
+    } catch (error) {
+        // console.error('Error compressing image:', error);
+        setMessage({ type: 'error', text: 'Failed to compress image' });
+        setLoading(false);
     }
-  };
+};
 
   const handleCropComplete = async (croppedFile) => {
     setShowCropModal(false);
@@ -301,17 +332,21 @@ function Settings() {
               <div className="backdrop-blur-xl bg-glass-bg border border-glass-border rounded-2xl p-4 sticky top-24">
                 <div className="text-center mb-6 p-4 bg-gradient-to-b from-green-500/10 to-transparent rounded-xl">
                   <div className="relative w-24 h-24 mx-auto mb-3 group">
-                    {profileImage ? (
-                      <img 
-                        src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${profileImage}`}
-                        alt={formData.first_name}
-                        className="w-24 h-24 rounded-full object-cover border-4 border-green-500/30"
-                      />
-                    ) : (
-                      <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-green-500/30">
-                        {getUserInitials()}
-                      </div>
-                    )}
+{profileImage ? (
+    <img 
+        src={profileImage}  // Cloudinary URL direct use karo
+        alt={formData.first_name}
+        className="w-24 h-24 rounded-full object-cover border-4 border-green-500/30"
+        onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = '';
+        }}
+    />
+) : (
+    <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-green-500/30">
+        {getUserInitials()}
+    </div>
+)}
                     <label className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-green-600 transition-colors border-2 border-white">
                       <FiCamera size={14} />
                       <input 

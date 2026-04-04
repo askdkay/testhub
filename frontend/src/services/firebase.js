@@ -7,15 +7,15 @@ import {
     signInWithPhoneNumber,
     onAuthStateChanged           // ✅ YEH LINE ADD KARO
 } from 'firebase/auth';
-
+// require('dotenv').config();
 // Your Firebase config (from environment variables)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCfsLb95RQTcLi7heOvR8LXbgwedKlWNVY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "testhubwebauth.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "testhubwebauth",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "testhubwebauth.firebasestorage.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "681814802852",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:681814802852:web:62eafbfedb11095d484131"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 // Validate config
 const isValidConfig = firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined';

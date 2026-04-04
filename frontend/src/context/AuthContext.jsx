@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     // ✅ Listen to Firebase auth state changes
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-            console.log('Firebase Auth State:', fbUser?.email || fbUser?.phoneNumber || 'No user');
+            // console.log('Firebase Auth State:', fbUser?.email || fbUser?.phoneNumber || 'No user');
             setFirebaseUser(fbUser);
         });
         return () => unsubscribe();
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
                         logout();
                     }
                 } catch (error) {
-                    console.error('Session expired');
+                    // console.error('Session expired');
                     logout();
                 }
                 setLoading(false);
@@ -96,7 +96,7 @@ const loginWithGoogle = async () => {
             throw new Error('No user returned from Google');
         }
 
-        console.log('Firebase user:', firebaseUser.email);
+        // console.log('Firebase user:', firebaseUser.email);
         
         const res = await API.post('/auth/social-login', {
             email: firebaseUser.email,
@@ -109,7 +109,7 @@ const loginWithGoogle = async () => {
         return { success: true };
         
     } catch (error) {
-        console.error('Google Login Error:', error);
+        // console.error('Google Login Error:', error);
         let errorMessage = 'Google Login Failed';
         
         if (error.code === 'auth/popup-blocked') {
@@ -132,7 +132,7 @@ const sendOTP = async (phoneNumber) => {
             cleanPhone = `+91${cleanPhone}`;
         }
         
-        console.log('Sending OTP to:', cleanPhone);
+        // console.log('Sending OTP to:', cleanPhone);
         
         const appVerifier = setupRecaptcha();
         
@@ -146,7 +146,7 @@ const sendOTP = async (phoneNumber) => {
         return { success: true };
         
     } catch (error) {
-        console.error('Send OTP Error:', error);
+        // console.error('Send OTP Error:', error);
         return { success: false, message: error.message || 'Failed to send OTP' };
     }
 };
@@ -161,7 +161,7 @@ const sendOTP = async (phoneNumber) => {
             const result = await window.confirmationResult.confirm(otp);
             const firebaseUser = result.user;
             
-            console.log('Phone verified:', firebaseUser.phoneNumber);
+            // console.log('Phone verified:', firebaseUser.phoneNumber);
             
             // Send to backend
             const res = await API.post('/auth/social-login', {
@@ -175,7 +175,7 @@ const sendOTP = async (phoneNumber) => {
             return { success: true };
             
         } catch (error) {
-            console.error('Verify OTP Error:', error);
+            // console.error('Verify OTP Error:', error);
             let errorMessage = 'Invalid OTP';
             
             if (error.code === 'auth/invalid-verification-code') {

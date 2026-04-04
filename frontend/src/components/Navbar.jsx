@@ -3,16 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiChevronDown, FiMenu, FiX, FiUser, FiSettings, FiLogOut } from "react-icons/fi";
-import API from "../services/api"; // Added API import
+import API from "../services/api"; 
 import NotificationBell from './NotificationBell';
-
 
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [profileImage, setProfileImage] = useState(null); // Added profile image state
+  const [profileImage, setProfileImage] = useState(null); 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -23,9 +22,11 @@ function Navbar() {
         try {
           const res = await API.get("/profile/profile");
           if (res.data && res.data.profile_image) {
-            // Ensure the path starts with a slash
-            const imagePath = res.data.profile_image.startsWith("/") ? res.data.profile_image : `/${res.data.profile_image}`;
-
+            // ✅ Cloudinary HTTP check add kar diya taaki double slash na aaye
+            let imagePath = res.data.profile_image;
+            if (!imagePath.startsWith("http")) {
+              imagePath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+            }
             setProfileImage(imagePath);
           }
         } catch (error) {
@@ -45,7 +46,7 @@ function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Get user initials for avatar (using first_name + last_name)
+  // Get user initials for avatar
   const getUserInitials = () => {
     if (!user) return "U";
     if (user.first_name && user.last_name) {
@@ -78,7 +79,7 @@ function Navbar() {
           <div className='flex items-center justify-between'>
             {/* Logo */}
             <Link to='/' className='flex items-center space-x-2'>
-              <div className='w-8 h-8 md:w-10 md:h-10 border-2 rounded-xl border-white/20 ounded-4xl flex items-center justify-center'>
+              <div className='w-8 h-8 md:w-10 md:h-10 border-2 rounded-xl border-white/20 flex items-center justify-center'>
                 <span className='text-white text-xl md:text-2xl font-bold'>E</span>
               </div>
               <div className='inline-flex items-center text-base md:text-xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent'>
@@ -94,7 +95,6 @@ function Navbar() {
                 </span>
                 <span>st</span>
               </div>
-              <span></span>
               <span className='hidden md:inline-block text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30'>New</span>
             </Link>
 
@@ -136,7 +136,24 @@ function Navbar() {
                 <div className='relative'>
                   {/* User Avatar Button */}
                   <button onClick={() => setShowUserMenu(!showUserMenu)} className='flex items-center space-x-2 focus:outline-none'>
-                    {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-10 h-10 rounded-full object-cover border-2 border-green-500/30 shadow-lg hover:shadow-green-500/30 transition-all' /> : <div className='w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all'>{getUserInitials()}</div>}
+                    
+                    {/* ✅ FIXED PROFILE IMAGE (w-10) */}
+                    {profileImage ? (
+                        <img 
+                            src={profileImage}  
+                            alt={user?.name || "User"} 
+                            className='w-10 h-10 rounded-full object-cover border-2 border-green-500/30 shadow-lg hover:shadow-green-500/30 transition-all'
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.outerHTML = `<div class='w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg'>${getUserInitials()}</div>`;
+                            }}
+                        />
+                    ) : (
+                        <div className='w-10 h-10 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-green-500/30 transition-all'>
+                            {getUserInitials()}
+                        </div>
+                    )}
+                    
                     <FiChevronDown className={`text-gray-400 transition-transform ${showUserMenu ? "rotate-180" : ""}`} />
                   </button>
 
@@ -147,7 +164,24 @@ function Navbar() {
                         {/* User Info Header */}
                         <div className='p-4 border-b border-white/10'>
                           <div className='flex items-center space-x-3'>
-                            {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>}
+                            
+                            {/* ✅ FIXED PROFILE IMAGE (w-12) */}
+                            {profileImage ? (
+                                <img 
+                                    src={profileImage} 
+                                    alt={user?.name || "User"} 
+                                    className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' 
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.outerHTML = `<div class='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>${getUserInitials()}</div>`;
+                                    }}
+                                />
+                            ) : (
+                                <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>
+                                    {getUserInitials()}
+                                </div>
+                            )}
+
                             <div>
                               <p className='text-white font-semibold'>{user.name}</p>
                               <p className='text-gray-400 text-xs'>{user.email}</p>
@@ -179,7 +213,6 @@ function Navbar() {
                             <span>Settings</span>
                           </button>
                    
-                          
                           <div className='border-t border-white/10 my-2'></div>
 
                           <button onClick={handleLogout} className='w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all'>
@@ -216,7 +249,24 @@ function Navbar() {
               {/* Mobile User Info */}
               {user && (
                 <div className='flex items-center space-x-3 p-3 bg-white/5 rounded-xl mb-3'>
-                  {profileImage ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${profileImage}`} alt={user?.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>{getUserInitials()}</div>}
+                  
+                  {/* ✅ FIXED PROFILE IMAGE (w-12) */}
+                  {profileImage ? (
+                      <img 
+                          src={profileImage} 
+                          alt={user?.name || "User"} 
+                          className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30'
+                          onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.outerHTML = `<div class='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>${getUserInitials()}</div>`;
+                          }}
+                      />
+                  ) : (
+                      <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl'>
+                          {getUserInitials()}
+                      </div>
+                  )}
+
                   <div>
                     <p className='text-white font-semibold'>{user.name}</p>
                     <p className='text-gray-400 text-xs'>{user.email}</p>

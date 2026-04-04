@@ -22,7 +22,6 @@ function UserAnalytics() {
   const [timeRange, setTimeRange] = useState("all");
   const [profileImage, setProfileImage] = useState(null);
 
-  // FIX 1: Added missing formData state to prevent the crash in fetchProfile
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -37,12 +36,19 @@ function UserAnalytics() {
     fetchProfile();
   }, []);
 
-  // FIX 2: Updated to accept a 'user' parameter instead of relying on the global admin formData
   const getUserInitials = (user) => {
     if (!user) return "U";
     if (user.first_name && user.last_name) return `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`.toUpperCase();
     if (user.name) return user.name.charAt(0).toUpperCase();
     return "U";
+  };
+
+  // ✅ HELPER FUNCTION: Cloudinary aur Local images dono ko handle karne ke liye
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith("http")) return imagePath; // Cloudinary URL hai toh direct return karo
+    const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+    return `${baseUrl}${imagePath.startsWith("/") ? "" : "/"}${imagePath}`;
   };
 
   const fetchProfile = async () => {
@@ -58,7 +64,7 @@ function UserAnalytics() {
         exam_preparation: data.exam_preparation || "",
       });
       if (data.profile_image) {
-        setProfileImage(data.profile_image);
+        setProfileImage(getImageUrl(data.profile_image));
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -309,8 +315,24 @@ function UserAnalytics() {
                   <motion.tr key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.02 }} className='border-b border-glass-border last:border-0 hover:bg-white/5 transition-all'>
                     <td className='py-4 px-6'>
                       <div className='flex items-center gap-3'>
-                        {/* FIX 3: Pointing to individual user profiles/initials rather than the admin's profile data. Also reduced width from w-24 to w-12 so it fits in a table row */}
-                        {user.profile_image ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${user.profile_image}`} alt={user.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>{getUserInitials(user)}</div>}
+                        
+                        {/* ✅ FIXED: Avatar in Table Row */}
+                        {user.profile_image ? (
+                          <img 
+                            src={getImageUrl(user.profile_image)} 
+                            alt={user.name || "User"} 
+                            className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' 
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.outerHTML = `<div class='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>${getUserInitials(user)}</div>`;
+                            }}
+                          />
+                        ) : (
+                          <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>
+                            {getUserInitials(user)}
+                          </div>
+                        )}
+
                         <div>
                           <p className='font-medium'>{user.name}</p>
                           <p className='text-xs text-gray-400'>ID: {user.id}</p>
@@ -378,8 +400,24 @@ function UserAnalytics() {
                 <div className='space-y-6'>
                   {/* Profile Header */}
                   <div className='flex items-center gap-4 p-4 bg-glass-bg rounded-xl'>
-                        {selectedUser.profile_image ? <img src={`${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}${selectedUser.profile_image}`} alt={selectedUser.name || "User"} className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' /> : <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>{getUserInitials(selectedUser)}</div>}
-                    {/* <div className='w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold'>{getUserInitials(selectedUser)}</div> */}
+                    
+                    {/* ✅ FIXED: Avatar in Modal */}
+                    {selectedUser.profile_image ? (
+                        <img 
+                            src={getImageUrl(selectedUser.profile_image)} 
+                            alt={selectedUser.name || "User"} 
+                            className='w-12 h-12 rounded-full object-cover border-2 border-green-500/30' 
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.outerHTML = `<div class='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>${getUserInitials(selectedUser)}</div>`;
+                            }}
+                        />
+                    ) : (
+                        <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-green-500/30'>
+                            {getUserInitials(selectedUser)}
+                        </div>
+                    )}
+
                     <div>
                       <h3 className='text-xl font-bold'>{selectedUser.name}</h3>
                       <p className='text-gray-400'>Member since {new Date(selectedUser.created_at).toLocaleDateString()}</p>

@@ -1,46 +1,85 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const sharp = require('sharp');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { cloudinary } = require('../config/cloudinary');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
+const { Readable } = require('stream');
 
-// Configure multer for profile images
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = 'uploads/profiles';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+// Configure multer (temporary memory storage for compression)
+const multerStorage = multer.memoryStorage();
+const upload = multer({ 
+    storage: multerStorage,
+    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(file.originalname.toLowerCase().split('.').pop());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (mimetype && extname) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
         }
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `profile-${req.userId}-${uniqueSuffix}${path.extname(file.originalname)}`);
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only image files are allowed'));
+// ============================================
+// COMPRESS IMAGE WITH SHARP
+// ============================================
+async function compressImage(buffer, originalName) {
+    try {
+        const originalSizeMB = buffer.length / 1024 / 1024;
+        console.log(`📸 Original size: ${originalSizeMB.toFixed(2)}MB`);
+        
+        let compressedBuffer = buffer;
+        let quality = 80;
+        
+        while (compressedBuffer.length > 100 * 1024 && quality > 30) {
+            compressedBuffer = await sharp(buffer)
+                .resize(500, 500, { fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: quality, progressive: true })
+                .toBuffer();
+            
+            const currentSizeKB = compressedBuffer.length / 1024;
+            console.log(`   Quality ${quality}% → ${currentSizeKB.toFixed(0)}KB`);
+            quality -= 10;
+        }
+        
+        const finalSizeKB = compressedBuffer.length / 1024;
+        console.log(`✅ Final: ${finalSizeKB.toFixed(0)}KB`);
+        
+        return compressedBuffer;
+    } catch (error) {
+        console.error('Compression error:', error);
+        return buffer;
     }
-};
+}
 
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit (allow upload)
-    fileFilter: fileFilter
+// ============================================
+// GET USER PROFILE
+// ============================================
+router.get('/profile', auth, async (req, res) => {
+    try {
+        const [users] = await db.query(
+            `SELECT id, first_name, last_name, email, phone, address, 
+                    exam_preparation, profile_image, created_at, last_login 
+             FROM users WHERE id = ?`,
+            [req.userId]
+        );
+        
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json(users[0]);
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
-
 // Get user stats (tests taken, avg score, etc.)
 router.get('/stats', auth, async (req, res) => {
     try {
@@ -167,32 +206,9 @@ router.get('/test-history', auth, async (req, res) => {
         res.json([]);
     }
 });
-
-// GET USER PROFILE
-router.get('/profile', auth, async (req, res) => {
-    try {
-        const [users] = await db.query(
-            `SELECT id, first_name, last_name, email, phone, address, 
-                    exam_preparation, profile_image, created_at, last_login 
-             FROM users WHERE id = ?`,
-            [req.userId]
-        );
-        
-        if (users.length === 0) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        res.json(users[0]);
-    } catch (error) {
-        console.error('Error fetching profile:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-
+// ============================================
 // UPDATE USER PROFILE
-
-// UPDATE USER PROFILE
+// ============================================
 router.put('/profile', auth, async (req, res) => {
     try {
         const { first_name, last_name, phone, address, exam_preparation } = req.body;
@@ -212,71 +228,86 @@ router.put('/profile', auth, async (req, res) => {
     }
 });
 
-
-// UPLOAD PROFILE IMAGE
-
-const sharp = require('sharp');
-
+// ============================================
+// UPLOAD PROFILE IMAGE (WITH COMPRESSION)
+// ============================================
 router.post('/profile/upload-image', auth, upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: 'No file uploaded' });
         }
         
-        // Compress image using sharp
-        const compressedFilename = `profile-${req.userId}-${Date.now()}.jpg`;
-        const compressedPath = path.join(__dirname, '../uploads/profiles', compressedFilename);
+        console.log('📸 Received:', req.file.originalname, `${(req.file.size/1024/1024).toFixed(2)}MB`);
         
-        await sharp(req.file.path)
-            .resize(500, 500, { fit: 'cover' })  // Resize to 500x500
-            .jpeg({ quality: 70 })                // Compress to ~70% quality
-            .toFile(compressedPath);
+        // Compress image
+        const compressedBuffer = await compressImage(req.file.buffer, req.file.originalname);
         
-        // Delete original uploaded file
-        fs.unlinkSync(req.file.path);
+        // Upload to Cloudinary
+        const uploadPromise = new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: 'testhub/profiles',
+                    public_id: `profile-${req.userId}-${Date.now()}`,
+                    transformation: [
+                        { width: 500, height: 500, crop: 'limit', quality: 'auto' }
+                    ]
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            
+            const readableStream = new Readable();
+            readableStream.push(compressedBuffer);
+            readableStream.push(null);
+            readableStream.pipe(stream);
+        });
         
-        // Delete old image if exists
-        const [users] = await db.query('SELECT profile_image FROM users WHERE id = ?', [req.userId]);
-        if (users[0]?.profile_image) {
-            const oldPath = path.join(__dirname, '..', users[0].profile_image);
-            if (fs.existsSync(oldPath)) {
-                fs.unlinkSync(oldPath);
+        const uploadResult = await uploadPromise;
+        
+        // Delete old image
+        const [users] = await db.query('SELECT profile_image_public_id FROM users WHERE id = ?', [req.userId]);
+        if (users[0]?.profile_image_public_id) {
+            try {
+                await cloudinary.uploader.destroy(users[0].profile_image_public_id);
+            } catch (err) {
+                console.error('Error deleting old image:', err);
             }
         }
         
-        const imageUrl = `/uploads/profiles/${compressedFilename}`;
+        await db.query(
+            'UPDATE users SET profile_image = ?, profile_image_public_id = ? WHERE id = ?',
+            [uploadResult.secure_url, uploadResult.public_id, req.userId]
+        );
         
-        await db.query('UPDATE users SET profile_image = ? WHERE id = ?', [imageUrl, req.userId]);
-        
-        // Check compressed file size
-        const stats = fs.statSync(compressedPath);
-        console.log(`Compressed image size: ${(stats.size / 1024).toFixed(2)} KB`);
+        const finalSizeKB = compressedBuffer.length / 1024;
         
         res.json({ 
-            message: 'Image uploaded and compressed successfully', 
-            imageUrl: imageUrl,
-            size: `${(stats.size / 1024).toFixed(2)} KB`
+            message: `Uploaded! ${(req.file.size/1024/1024).toFixed(2)}MB → ${finalSizeKB.toFixed(0)}KB`,
+            imageUrl: uploadResult.secure_url
         });
+        
     } catch (error) {
         console.error('Error uploading image:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
 
-
+// ============================================
 // DELETE PROFILE IMAGE
-
+// ============================================
 router.delete('/profile/delete-image', auth, async (req, res) => {
     try {
-        const [users] = await db.query('SELECT profile_image FROM users WHERE id = ?', [req.userId]);
-        if (users[0]?.profile_image) {
-            const imagePath = path.join(__dirname, '..', users[0].profile_image);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-            }
+        const [users] = await db.query('SELECT profile_image_public_id FROM users WHERE id = ?', [req.userId]);
+        if (users[0]?.profile_image_public_id) {
+            await cloudinary.uploader.destroy(users[0].profile_image_public_id);
         }
         
-        await db.query('UPDATE users SET profile_image = NULL WHERE id = ?', [req.userId]);
+        await db.query(
+            'UPDATE users SET profile_image = NULL, profile_image_public_id = NULL WHERE id = ?',
+            [req.userId]
+        );
         
         res.json({ message: 'Image deleted successfully' });
     } catch (error) {
@@ -285,18 +316,22 @@ router.delete('/profile/delete-image', auth, async (req, res) => {
     }
 });
 
-
+// ============================================
 // CHANGE PASSWORD
-
+// ============================================
 router.post('/profile/change-password', auth, async (req, res) => {
     try {
         const { current_password, new_password } = req.body;
         
         const [users] = await db.query('SELECT password FROM users WHERE id = ?', [req.userId]);
-        const user = users[0];
         
-        // Check current password
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        const user = users[0];
         let isValid = false;
+        
         if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
             isValid = await bcrypt.compare(current_password, user.password);
         } else {
@@ -317,33 +352,29 @@ router.post('/profile/change-password', auth, async (req, res) => {
     }
 });
 
-
-// FORGOT PASSWORD - SEND OTP/RESET LINK
-
+// ============================================
+// FORGOT PASSWORD
+// ============================================
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         
         const [users] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
         if (users.length === 0) {
-            // For security, don't reveal that email doesn't exist
             return res.json({ message: 'If email exists, reset link sent' });
         }
         
-        // Generate reset token
         const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetExpiry = new Date(Date.now() + 3600000); // 1 hour
+        const resetExpiry = new Date(Date.now() + 3600000);
         
         await db.query(
             'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?',
             [resetToken, resetExpiry, email]
         );
         
-        // TODO: Send email with reset link
-        // For now, return token in response (in production, send email)
         res.json({ 
-            message: 'Password reset link sent to your email',
-            resetToken: resetToken // Remove in production
+            message: 'Password reset link sent',
+            resetToken: resetToken
         });
     } catch (error) {
         console.error('Error in forgot password:', error);
@@ -351,9 +382,9 @@ router.post('/forgot-password', async (req, res) => {
     }
 });
 
-
+// ============================================
 // RESET PASSWORD
-
+// ============================================
 router.post('/reset-password', async (req, res) => {
     try {
         const { token, new_password } = req.body;
@@ -381,4 +412,6 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
-module.exports = router;
+
+
+module.exports = router; 
