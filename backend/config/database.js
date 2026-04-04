@@ -1,47 +1,35 @@
 const mysql = require('mysql2');
-const fs = require('fs');
-const path = require('path');
 
-// TiDB Cloud requires SSL connection
+// Check karein ki hum production (TiDB) mein hain ya localhost mein
+const isProduction = process.env.NODE_ENV === 'production';
+
 const dbConfig = {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: parseInt(process.env.DB_PORT) || 4000,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'sanchore2026',
+    database: process.env.DB_NAME || 'test_series_new',
+    port: parseInt(process.env.DB_PORT) || 3306, // Local default 3306, TiDB default 4000
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
-    // ✅ CRITICAL: SSL configuration for TiDB Cloud
-    ssl: {
+    // ✅ SSL sirf tab chalega jab hum production/online honge
+    ssl: isProduction ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true
-    }
+    } : null 
 };
 
-console.log('🔌 Connecting to TiDB Cloud with SSL...');
-console.log(`📊 Host: ${dbConfig.host}:${dbConfig.port}`);
-console.log(`📊 Database: ${dbConfig.database}`);
-console.log(`📊 User: ${dbConfig.user}`);
-console.log(`🔒 SSL: Enabled`);
+console.log(`🔌 Connecting to: ${dbConfig.host} | SSL: ${isProduction ? 'ON' : 'OFF'}`);
 
 const pool = mysql.createPool(dbConfig);
 
-// Test connection immediately
+// Connection check
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error('❌ DATABASE CONNECTION FAILED:');
-        console.error('Error Code:', err.code);
-        console.error('Error Message:', err.message);
-        console.error('');
-        console.error('Possible solutions:');
-        console.error('1. Check TiDB Cloud IP Access List - add 0.0.0.0/0');
-        console.error('2. Verify DB_HOST, DB_USER, DB_PASSWORD are correct');
-        console.error('3. Ensure TiDB Cloud cluster is active');
+        console.error('❌ DB Connection Error:', err.message);
     } else {
-        console.log('✅ Database connected successfully to TiDB Cloud');
+        console.log('✅ Database connected successfully');
         connection.release();
     }
 });

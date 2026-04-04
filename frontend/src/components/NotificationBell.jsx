@@ -123,9 +123,9 @@ function NotificationBell() {
           <FiBellOff className="text-gray-400" size={20} />
         )}
         
-<span class="absolute -top-1 -right-1 flex size-3">
-  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-95"></span>
-  <span class="relative inline-flex size-3 rounded-full bg-sky-500"></span>
+<span className="absolute -top-1 -right-1 flex size-3">
+  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-95"></span>
+  <span className="relative inline-flex size-3 rounded-full bg-sky-500"></span>
 </span>
         
       </button>

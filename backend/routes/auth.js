@@ -245,4 +245,30 @@ router.get('/profile', auth, async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
+// ✅ CHECK SESSION ROUTE (Yeh Frontend ke refresh ke liye zaroori hai)
+router.get('/verify', auth, async (req, res) => {
+    try {
+        // auth middleware ne token verify kar liya hai aur req.userId set kar diya hai
+        const [users] = await db.query(
+            'SELECT id, name, email, phone, role, exam_preparation FROM users WHERE id = ?',
+            [req.userId]
+        );
+        
+        if (users.length === 0) {
+            return res.status(404).json({ valid: false, message: 'User not found' });
+        }
+        
+        // Frontend ko { valid: true } chahiye isiliye aise bhej rahe hain
+        res.json({ 
+            valid: true, 
+            user: users[0] 
+        });
+    } catch (error) {
+        console.error('Session check error:', error);
+        res.status(500).json({ valid: false, message: 'Server error' });
+    }
+});
+
+// module.exports = router; // Yeh tumhari file ke end mein already hoga
 module.exports = router;
