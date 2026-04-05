@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import API from "../../services/api";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import { FiFileText, FiEdit2, FiTrash2, FiEye, FiPlus, FiSearch, FiChevronDown, FiX, FiClock, FiAlertCircle, FiBarChart2, FiCopy, FiSave } from "react-icons/fi";
-import { FaGraduationCap, FaRegFileAlt, FaCheckCircle,FaCloudUploadAlt } from "react-icons/fa";
-
+import { FaGraduationCap, FaRegFileAlt, FaCheckCircle, FaCloudUploadAlt } from "react-icons/fa";
 
 function TestManagement() {
   const navigate = useNavigate();
@@ -243,7 +242,6 @@ function TestManagement() {
             </div>
             <button onClick={() => navigate("/admin/bulk-import")} className='w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors'>
               <FaCloudUploadAlt />
-
               Bulk Test
             </button>
             <button onClick={() => navigate("/admin/add-test")} className='w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors'>
@@ -301,7 +299,8 @@ function TestManagement() {
                             <button onClick={() => navigate(`/admin/add-questions/${test.id}`)} className='p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-md transition-colors' title='Add/View Questions'>
                               <FiEye size={16} />
                             </button>
-                            <button onClick={() => setEditingTest(test)} className='p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors' title='Edit Info'>
+                            {/* //In the actions section, edit button should navigate to edit page */}
+                            <button onClick={() => navigate(`/admin/edit-test/${test.id}`)} className='p-2 hover:bg-green-500/20 rounded-lg text-green-400 transition-all' title='Edit Test'>
                               <FiEdit2 size={16} />
                             </button>
                             <button onClick={() => handleDuplicateTest(test)} className='p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors' title='Duplicate'>

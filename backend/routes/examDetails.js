@@ -1,8 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const { cloudinary } = require('../config/cloudinary');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
+
+// Configure multer for memory storage (for JSON upload to Cloudinary)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 // ============================================
 // PUBLIC ROUTES
@@ -13,21 +22,15 @@ router.get('/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
         
-        
-        // First get exam id from slug
-        const [exam] = await db.query(
-            'SELECT id, name, slug FROM exams WHERE slug = ? AND is_active = 1',
-            [slug]
-        );
-        
+        // Get exam id from slug
+        const [exam] = await db.query('SELECT id, name, slug FROM exams WHERE slug = ? AND is_active = 1', [slug]);
         if (exam.length === 0) {
             return res.status(404).json({ message: 'Exam not found' });
         }
         
-        // Get exam details
+        // Get exam details from database (only URL)
         const [details] = await db.query(
-            `SELECT ed.*, e.name as exam_name, e.slug as exam_slug,
-                    ec.name as category_name
+            `SELECT ed.*, e.name as exam_name, e.slug as exam_slug, ec.name as category_name
              FROM exam_details ed
              JOIN exams e ON ed.exam_id = e.id
              JOIN exam_categories ec ON e.category_id = ec.id
@@ -39,30 +42,34 @@ router.get('/exam/:slug', async (req, res) => {
             return res.status(404).json({ message: 'Exam details not found' });
         }
         
-        // Update view count
-        await db.query(
-            'UPDATE exam_details SET views = views + 1 WHERE id = ?',
-            [details[0].id]
-        );
+        // Fetch JSON from Cloudinary
+        let jsonData = {};
+        if (details[0].json_file_url) {
+            try {
+                const response = await fetch(details[0].json_file_url);
+                jsonData = await response.json();
+            } catch (err) {
+                console.error('Error fetching JSON from Cloudinary:', err);
+            }
+        }
         
         // Get test series for this exam
         const [testSeries] = await db.query(
             `SELECT id, title, total_questions, duration, price, is_free 
-             FROM tests 
-             WHERE exam_id = ? AND status = 'published'`,
+             FROM tests WHERE exam_id = ? AND status = 'published'`,
             [exam[0].id]
         );
         
         // Get study material for this exam
         const [studyMaterial] = await db.query(
             `SELECT id, title, category, views 
-             FROM blogs 
-             WHERE category LIKE ? AND status = 'published'`,
-            [`%${details[0].category_name}%`]
+             FROM blogs WHERE exam_id = ? AND status = 'published'`,
+            [exam[0].id]
         );
         
         res.json({
             ...details[0],
+            ...jsonData,
             test_series: testSeries,
             study_material: studyMaterial
         });
@@ -77,12 +84,11 @@ router.get('/exam/:slug', async (req, res) => {
 router.get('/exams-list', async (req, res) => {
     try {
         const [exams] = await db.query(
-            `SELECT e.id, e.name, e.slug, e.short_name,
-                    ec.name as category_name,
-                    ed.id as details_id
+            `SELECT e.id, e.name, e.slug, e.short_name, ec.name as category_name,
+                    ed.id as details_id, ed.is_published, ed.json_file_url
              FROM exams e
              JOIN exam_categories ec ON e.category_id = ec.id
-             LEFT JOIN exam_details ed ON e.id = ed.exam_id AND ed.is_published = 1
+             LEFT JOIN exam_details ed ON e.id = ed.exam_id
              WHERE e.is_active = 1`
         );
         res.json(exams);
@@ -100,8 +106,7 @@ router.get('/exams-list', async (req, res) => {
 router.get('/admin/pages', auth, adminController.isAdmin, async (req, res) => {
     try {
         const [pages] = await db.query(
-            `SELECT ed.*, e.name as exam_name, e.slug as exam_slug,
-                    ec.name as category_name,
+            `SELECT ed.*, e.name as exam_name, e.slug as exam_slug, ec.name as category_name,
                     (SELECT COUNT(*) FROM tests WHERE exam_id = e.id) as test_count
              FROM exam_details ed
              JOIN exams e ON ed.exam_id = e.id
@@ -115,128 +120,180 @@ router.get('/admin/pages', auth, adminController.isAdmin, async (req, res) => {
     }
 });
 
-// Get single exam page for editing
+// ✅ FIXED: Get single exam page for editing
 router.get('/admin/pages/:examId', auth, adminController.isAdmin, async (req, res) => {
     try {
+        const examId = req.params.examId;
+        console.log('Fetching exam page for exam ID:', examId);
+        
         const [page] = await db.query(
             `SELECT ed.*, e.name as exam_name, e.slug
              FROM exam_details ed
              JOIN exams e ON ed.exam_id = e.id
              WHERE ed.exam_id = ?`,
-            [req.params.examId]
+            [examId]
         );
         
         if (page.length === 0) {
             return res.status(404).json({ message: 'Page not found' });
         }
         
-        res.json(page[0]);
+        // Fetch JSON from Cloudinary
+        let jsonData = {};
+        if (page[0].json_file_url) {
+            try {
+                const response = await fetch(page[0].json_file_url);
+                jsonData = await response.json();
+            } catch (err) {
+                console.error('Error fetching JSON from Cloudinary:', err);
+            }
+        }
+        
+        res.json({
+            ...page[0],
+            ...jsonData
+        });
+        
     } catch (error) {
         console.error('Error fetching exam page:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
 
-// Create/Update exam page
-// Create/Update exam page - FIXED VERSION
-router.post('/admin/pages/:examId', auth, adminController.isAdmin, async (req, res) => {
+// ✅ FIXED: Create/Update exam page
+router.post('/admin/pages/:examId', auth, adminController.isAdmin, upload.single('jsonFile'), async (req, res) => {
     try {
         const examId = req.params.examId;
-        const data = req.body;
+        console.log('Saving exam page for exam ID:', examId);
+        console.log('Request body:', req.body);
+        console.log('File received:', req.file ? 'Yes' : 'No');
         
-        console.log('📥 Received data for exam:', examId);
-        console.log('Data keys:', Object.keys(data));
-        
-        // Validate examId
-        if (!examId) {
-            return res.status(400).json({ message: 'Exam ID is required' });
-        }
+        const { exam_title, exam_full_form, conducting_body, official_website, 
+                exam_language, exam_level, exam_category, exam_frequency, is_published } = req.body;
         
         // Check if exam exists
-        const [examExists] = await db.query(
-            'SELECT id FROM exams WHERE id = ?',
-            [examId]
-        );
-        
+        const [examExists] = await db.query('SELECT id, name FROM exams WHERE id = ?', [examId]);
         if (examExists.length === 0) {
             return res.status(404).json({ message: 'Exam not found' });
         }
         
-        // Prepare data with defaults
-        const pageData = {
-            exam_id: examId,
-            exam_title: data.exam_title || null,
-            exam_full_form: data.exam_full_form || null,
-            conducting_body: data.conducting_body || null,
-            official_website: data.official_website || null,
-            exam_language: data.exam_language ? JSON.stringify(data.exam_language) : JSON.stringify([]),
-            exam_level: data.exam_level || null,
-            exam_category: data.exam_category || null,
-            exam_frequency: data.exam_frequency || null,
-            about_exam: data.about_exam ? JSON.stringify(data.about_exam) : JSON.stringify({}),
-            eligibility_criteria: data.eligibility_criteria ? JSON.stringify(data.eligibility_criteria) : JSON.stringify({}),
-            age_limit: data.age_limit ? JSON.stringify(data.age_limit) : JSON.stringify({}),
-            education_qualification: data.education_qualification ? JSON.stringify(data.education_qualification) : JSON.stringify({}),
-            exam_pattern: data.exam_pattern ? JSON.stringify(data.exam_pattern) : JSON.stringify({}),
-            detailed_syllabus: data.detailed_syllabus ? JSON.stringify(data.detailed_syllabus) : JSON.stringify({}),
-            application_process: data.application_process ? JSON.stringify(data.application_process) : JSON.stringify({}),
-            exam_centers: data.exam_centers ? JSON.stringify(data.exam_centers) : JSON.stringify({}),
-            key_dates_format: data.key_dates_format ? JSON.stringify(data.key_dates_format) : JSON.stringify({}),
-            post_selection_training: data.post_selection_training ? JSON.stringify(data.post_selection_training) : JSON.stringify({}),
-            salary_and_perks: data.salary_and_perks ? JSON.stringify(data.salary_and_perks) : JSON.stringify({}),
-            career_progression: data.career_progression ? JSON.stringify(data.career_progression) : JSON.stringify({}),
-            related_exams: data.related_exams ? JSON.stringify(data.related_exams) : JSON.stringify([]),
-            metadata: data.metadata ? JSON.stringify(data.metadata) : JSON.stringify({
-                last_updated: new Date().toISOString().split('T')[0]
-            }),
-            meta_title: data.meta_title || data.exam_title || null,
-            meta_description: data.meta_description || null,
-            meta_keywords: data.meta_keywords || null,
-            is_published: data.is_published || false,
-            published_at: data.is_published ? new Date() : null
-        };
+        let jsonUrl = null;
+        let publicId = null;
+        let jsonData = {};
         
-        console.log('📤 Saving page data for exam:', examId);
-        
-        // Check if page exists
-        const [existing] = await db.query(
-            'SELECT id FROM exam_details WHERE exam_id = ?',
-            [examId]
-        );
-        
-        let result;
-        if (existing.length > 0) {
-            // Update
-            console.log('Updating existing page');
-            const [updateResult] = await db.query(
-                `UPDATE exam_details SET ? WHERE exam_id = ?`,
-                [pageData, examId]
-            );
-            result = updateResult;
-        } else {
-            // Create
-            console.log('Creating new page');
-            const [insertResult] = await db.query(
-                `INSERT INTO exam_details SET ?`,
-                pageData
-            );
-            result = insertResult;
+        // Handle JSON file upload
+        if (req.file) {
+            // Upload to Cloudinary
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'testhub/exam-details',
+                        public_id: `exam-${examId}-${Date.now()}`,
+                        resource_type: 'raw'
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                stream.end(req.file.buffer);
+            });
+            
+            jsonUrl = uploadResult.secure_url;
+            publicId = uploadResult.public_id;
+            
+            // Parse JSON to get data
+            const jsonString = req.file.buffer.toString('utf8');
+            jsonData = JSON.parse(jsonString);
+            
+        } else if (req.body.json_data) {
+            // If JSON data sent as string
+            jsonData = JSON.parse(req.body.json_data);
+            
+            // Upload to Cloudinary
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const buffer = Buffer.from(jsonString, 'utf8');
+            
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'testhub/exam-details',
+                        public_id: `exam-${examId}-${Date.now()}`,
+                        resource_type: 'raw'
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+                stream.end(buffer);
+            });
+            
+            jsonUrl = uploadResult.secure_url;
+            publicId = uploadResult.public_id;
         }
         
-        console.log('✅ Page saved successfully');
+        // Check if record exists
+        const [existing] = await db.query('SELECT id, json_public_id FROM exam_details WHERE exam_id = ?', [examId]);
+        
+        // Delete old JSON from Cloudinary if exists
+        if (existing.length > 0 && existing[0].json_public_id) {
+            try {
+                await cloudinary.uploader.destroy(existing[0].json_public_id, { resource_type: 'raw' });
+                console.log('Old JSON deleted from Cloudinary');
+            } catch (err) {
+                console.error('Error deleting old JSON:', err);
+            }
+        }
+        
+        const examTitle = exam_title || examExists[0].name;
+        const publishedStatus = is_published === 'true' || is_published === true;
+        
+        if (existing.length > 0) {
+            // Update existing record
+            await db.query(
+                `UPDATE exam_details SET 
+                    exam_title = ?, exam_full_form = ?, conducting_body = ?, 
+                    official_website = ?, exam_language = ?, exam_level = ?, 
+                    exam_category = ?, exam_frequency = ?,
+                    json_file_url = ?, json_public_id = ?, 
+                    is_published = ?, published_at = IF(? = 1, NOW(), published_at),
+                    updated_at = NOW()
+                 WHERE exam_id = ?`,
+                [
+                    examTitle, exam_full_form || null, conducting_body || null,
+                    official_website || null, exam_language || '[]', exam_level || null,
+                    exam_category || null, exam_frequency || null,
+                    jsonUrl, publicId, publishedStatus, publishedStatus, examId
+                ]
+            );
+        } else {
+            // Insert new record
+            await db.query(
+                `INSERT INTO exam_details 
+                    (exam_id, exam_title, exam_full_form, conducting_body, official_website,
+                     exam_language, exam_level, exam_category, exam_frequency,
+                     json_file_url, json_public_id, is_published, published_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    examId, examTitle, exam_full_form || null, conducting_body || null,
+                    official_website || null, exam_language || '[]', exam_level || null,
+                    exam_category || null, exam_frequency || null,
+                    jsonUrl, publicId, publishedStatus, publishedStatus ? new Date() : null
+                ]
+            );
+        }
+        
+        console.log('Exam page saved successfully');
         res.json({ 
-            message: existing.length > 0 ? 'Exam page updated successfully' : 'Exam page created successfully',
-            examId: examId
+            message: 'Exam page saved to Cloudinary successfully', 
+            examId: examId,
+            jsonUrl: jsonUrl
         });
         
     } catch (error) {
-        console.error('❌ Error saving exam page:', error);
-        console.error('SQL Error:', error.sql);
-        console.error('SQL Message:', error.sqlMessage);
-        res.status(500).json({ 
-            message: 'Server error', 
-            error: error.sqlMessage || error.message 
-        });
+        console.error('Error saving exam page:', error);
+        res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
 
@@ -262,8 +319,14 @@ router.put('/admin/pages/:id/publish', auth, adminController.isAdmin, async (req
 // Delete exam page
 router.delete('/admin/pages/:id', auth, adminController.isAdmin, async (req, res) => {
     try {
+        const [page] = await db.query('SELECT json_public_id FROM exam_details WHERE id = ?', [req.params.id]);
+        
+        if (page[0]?.json_public_id) {
+            await cloudinary.uploader.destroy(page[0].json_public_id, { resource_type: 'raw' });
+        }
+        
         await db.query('DELETE FROM exam_details WHERE id = ?', [req.params.id]);
-        res.json({ message: 'Exam page deleted' });
+        res.json({ message: 'Exam page deleted from Cloudinary and database' });
     } catch (error) {
         console.error('Error deleting exam page:', error);
         res.status(500).json({ message: 'Server error' });

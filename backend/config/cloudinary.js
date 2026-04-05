@@ -16,5 +16,13 @@ const storage = new CloudinaryStorage({
         public_id: (req, file) => `profile-${req.userId}-${Date.now()}`
     }
 });
-
-module.exports = { cloudinary, storage };
+const jsonStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'testhub/exam-details',
+        allowed_formats: ['json'],
+        public_id: (req, file) => `exam-${req.params.examId || req.body.exam_id}-${Date.now()}`,
+        resource_type: 'raw'  // Important for non-image files
+    }
+});
+module.exports = { cloudinary, storage,jsonStorage };

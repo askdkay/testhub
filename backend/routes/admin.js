@@ -7,7 +7,15 @@ const adminController = require('../controllers/adminController');
 // All admin routes require authentication and admin role
 router.use(auth);
 router.use(adminController.isAdmin);
+const multer = require('multer');
+const { cloudinary } = require('../config/cloudinary');
 
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 // ============================================
 // TEST MANAGEMENT ROUTES
 // ============================================
@@ -61,7 +69,7 @@ router.post('/tests', async (req, res) => {
             ]
         );
 
-        console.log('✅ Test created with ID:', result.insertId);
+        // console.log('✅ Test created with ID:', result.insertId);
 
         res.status(201).json({
             message: 'Test created successfully',
@@ -75,12 +83,13 @@ router.post('/tests', async (req, res) => {
 });
 
 // Get all tests (with optional exam_id filter)
+// Get all tests (with optional exam_id filter) - FIXED
 router.get('/tests', async (req, res) => {
     try {
         const { exam_id } = req.query;
         let query = `
             SELECT t.*, 
-                   (SELECT COUNT(*) FROM questions WHERE test_id = t.id) as total_questions 
+                   t.total_questions as total_questions
             FROM tests t
             WHERE 1=1
         `;
@@ -96,7 +105,7 @@ router.get('/tests', async (req, res) => {
         const [tests] = await db.query(query, params);
         res.json(tests);
     } catch (error) {
-        console.error('Error fetching tests:', error);
+        // console.error('Error fetching tests:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -117,7 +126,7 @@ router.get('/tests/:id', async (req, res) => {
             questions: questions
         });
     } catch (error) {
-        console.error('Error fetching test:', error);
+        // console.error('Error fetching test:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -128,7 +137,7 @@ router.get('/tests/:id/questions', async (req, res) => {
         const [questions] = await db.query('SELECT * FROM questions WHERE test_id = ? ORDER BY id', [req.params.id]);
         res.json(questions);
     } catch (error) {
-        console.error('Error fetching questions:', error);
+        // console.error('Error fetching questions:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -148,7 +157,7 @@ router.put('/tests/:id', async (req, res) => {
         
         res.json({ message: 'Test updated successfully' });
     } catch (error) {
-        console.error('Error updating test:', error);
+        // console.error('Error updating test:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -163,7 +172,7 @@ router.delete('/tests/:id/questions', async (req, res) => {
         
         res.json({ message: 'Questions deleted successfully' });
     } catch (error) {
-        console.error('Error deleting questions:', error);
+        // console.error('Error deleting questions:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -174,7 +183,7 @@ router.delete('/tests/:testId', async (req, res) => {
         await db.query('DELETE FROM tests WHERE id = ?', [req.params.testId]);
         res.json({ message: 'Test deleted successfully' });
     } catch (error) {
-        console.error('Error deleting test:', error);
+        // console.error('Error deleting test:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -206,7 +215,7 @@ router.post('/tests/:testId/duplicate', async (req, res) => {
         
         res.json({ message: 'Test duplicated successfully', testId: result.insertId });
     } catch (error) {
-        console.error('Error duplicating test:', error);
+        // console.error('Error duplicating test:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -217,7 +226,7 @@ router.post('/tests/:testId/publish', async (req, res) => {
         await db.query('UPDATE tests SET status = ? WHERE id = ?', ['published', req.params.testId]);
         res.json({ message: 'Test published successfully' });
     } catch (error) {
-        console.error('Error publishing test:', error);
+        // console.error('Error publishing test:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -266,41 +275,111 @@ router.post('/questions', async (req, res) => {
         await db.query('UPDATE tests SET total_questions = ? WHERE id = ?', [questions.length, testId]);
         res.json({ message: 'Questions added successfully', count: questions.length });
     } catch (error) {
-        console.error('Error adding questions:', error);
+        // console.error('Error adding questions:', error);
         res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
 
 // Bulk create test
-router.post('/tests/bulk', async (req, res) => {
+// Bulk create test from JSON (Upload to Cloudinary)
+router.post('/tests/bulk', upload.single('jsonFile'), async (req, res) => {
     try {
-        const {
-            title, description, category_id, exam_id, duration, total_questions,
-            total_marks, passing_marks, negative_marking, is_free,
-            price, language, status, banner_image, tags, instructions
-        } = req.body;
-
-        if (!title) return res.status(400).json({ message: 'Title is required' });
-
+        console.log('📥 Bulk test request received');
+        
+        if (!req.file) {
+            return res.status(400).json({ message: 'No JSON file uploaded' });
+        }
+        
+        // Parse JSON file
+        let testData;
+        try {
+            const jsonString = req.file.buffer.toString('utf8');
+            testData = JSON.parse(jsonString);
+            console.log('✅ JSON parsed successfully');
+        } catch (err) {
+            return res.status(400).json({ message: 'Invalid JSON format: ' + err.message });
+        }
+        
+        // Validate JSON structure
+        if (!testData.test || !testData.test.title) {
+            return res.status(400).json({ message: 'JSON must contain "test" object with "title"' });
+        }
+        
+        if (!testData.questions || !Array.isArray(testData.questions) || testData.questions.length === 0) {
+            return res.status(400).json({ message: 'JSON must contain "questions" array' });
+        }
+        
+        const { test, questions } = testData;
+        
+        // Upload JSON to Cloudinary
+        console.log('📤 Uploading JSON to Cloudinary...');
+        
+        const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: 'testhub/tests',
+                    public_id: `bulk-test-${Date.now()}`,
+                    resource_type: 'raw'
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            stream.end(req.file.buffer);
+        });
+        
+        const jsonUrl = uploadResult.secure_url;
+        const publicId = uploadResult.public_id;
+        console.log('✅ Uploaded to Cloudinary:', jsonUrl);
+        
+        // Calculate totals
+        const totalQuestions = questions.length;
+        const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 4), 0);
+        
+        // Insert into database
         const [result] = await db.query(
             `INSERT INTO tests (
-                title, description, category_id, exam_id, duration, total_questions,
-                total_marks, passing_marks, negative_marking, is_free,
-                price, language, status, banner_image, tags, instructions, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                title, description, category_id, exam_id, duration,
+                total_questions, total_marks, passing_marks, negative_marking,
+                is_free, price, language, difficulty, instructions,
+                status, json_file_url, json_public_id, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                title, description || '', category_id || null, exam_id || null,
-                duration || 60, total_questions || 0, total_marks || 0,
-                passing_marks || 40, negative_marking || 0.25, is_free || false,
-                price || 0, language || 'english', status || 'draft',
-                banner_image || null, JSON.stringify(tags || []),
-                instructions || '', req.userId
+                test.title,
+                test.description || '',
+                test.category_id || null,
+                test.exam_id || null,
+                test.duration || 60,
+                totalQuestions,
+                totalMarks,
+                test.passing_marks || 40,
+                test.negative_marking || 0.25,
+                test.is_free || false,
+                test.price || 0,
+                test.language || 'english',
+                test.difficulty || 'medium',
+                test.instructions || '',
+                'draft',
+                jsonUrl,
+                publicId,
+                req.userId
             ]
         );
-
-        res.status(201).json({ message: 'Test created successfully', testId: result.insertId });
+        
+        const testId = result.insertId;
+        
+        console.log('✅ Test created in database with ID:', testId);
+        
+        res.status(201).json({
+            message: 'Test imported successfully to Cloudinary',
+            testId: testId,
+            jsonUrl: jsonUrl,
+            questionCount: totalQuestions
+        });
+        
     } catch (error) {
-        console.error('Error creating test:', error);
+        // console.error('❌ Error in bulk import:', error);
         res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
@@ -339,7 +418,7 @@ router.post('/questions/bulk', async (req, res) => {
 
         res.json({ message: 'Questions added successfully', count: addedCount });
     } catch (error) {
-        console.error('Error adding questions:', error);
+        // console.error('Error adding questions:', error);
         res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
@@ -372,7 +451,7 @@ router.get('/users', async (req, res) => {
         
         res.json(formattedUsers);
     } catch (error) {
-        console.error('Error fetching users:', error);
+        // console.error('Error fetching users:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -395,7 +474,7 @@ router.get('/user-stats', async (req, res) => {
             examDistribution: examDist
         });
     } catch (error) {
-        console.error('Error fetching user stats:', error);
+        // console.error('Error fetching user stats:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -429,7 +508,7 @@ router.get('/stats', async (req, res) => {
             avgScore: 68.5,
         });
     } catch (error) {
-        console.error('Error fetching stats:', error);
+        // console.error('Error fetching stats:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -444,7 +523,7 @@ router.get('/recent-activity', async (req, res) => {
         ];
         res.json(activity);
     } catch (error) {
-        console.error('Error fetching activity:', error);
+        // console.error('Error fetching activity:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -457,7 +536,7 @@ router.get('/analytics', async (req, res) => {
             { type: 'test', message: 'Test performance data', time: 'now' },
         ]);
     } catch (error) {
-        console.error('Error fetching analytics:', error);
+        // console.error('Error fetching analytics:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

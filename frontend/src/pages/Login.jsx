@@ -5,9 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiX, FiPhone } from 'react-icons/fi';
 import { FcGoogle } from "react-icons/fc";
 
-
 function Login() {
-  const [loginMethod, setLoginMethod] = useState('email'); // 'email' ya 'phone'
+  const [loginMethod, setLoginMethod] = useState('email'); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -17,6 +16,8 @@ function Login() {
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // 1. Google ke liye alag loading state top par add ki hai
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); 
   
   const navigate = useNavigate();
   const { login, loginWithGoogle, sendOTP, verifyOTP } = useAuth();
@@ -49,11 +50,23 @@ function Login() {
     setLoading(false);
   };
 
+  // 2. Google Login function ko fix aur merge kiya gaya hai
   const handleGoogleLogin = async () => {
     setError('');
-    const result = await loginWithGoogle();
-    if (result.success) navigate('/tests');
-    else setError(result.message);
+    setIsGoogleLoading(true); // Loading Start
+    
+    try {
+      const result = await loginWithGoogle();
+      if (result.success) {
+        navigate('/tests');
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError("Google Login Failed");
+    } finally {
+      setIsGoogleLoading(false); // Loading Stop
+    }
   };
 
   return (
@@ -70,7 +83,6 @@ function Login() {
             <FiX size={16} />
           </button>
 
-          {/* Top Toggle (Sign up / Sign in) */}
           <div className="flex bg-gray-100 dark:bg-[#0A0A0A] rounded-full p-1 w-fit mb-6 border border-gray-200 dark:border-white/5">
             <Link to="/register" className="px-5 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all">Sign up</Link>
             <button className="px-5 py-1.5 rounded-full text-sm font-medium bg-white dark:bg-[#1A1A1D] shadow-sm dark:shadow-none text-gray-900 dark:text-white transition-all">Sign in</button>
@@ -78,7 +90,6 @@ function Login() {
 
           <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Welcome back</h1>
 
-          {/* Login Method Tabs */}
           <div className="flex space-x-4 mb-6 border-b border-gray-200 dark:border-gray-700">
              <button onClick={() => setLoginMethod('email')} className={`pb-2 text-sm font-medium transition-colors ${loginMethod === 'email' ? 'border-b-2 border-[#6B4EE6] text-[#6B4EE6]' : 'text-gray-500 hover:text-gray-300'}`}>Email</button>
              <button onClick={() => setLoginMethod('phone')} className={`pb-2 text-sm font-medium transition-colors ${loginMethod === 'phone' ? 'border-b-2 border-[#6B4EE6] text-[#6B4EE6]' : 'text-gray-500 hover:text-gray-300'}`}>Phone</button>
@@ -104,8 +115,29 @@ function Login() {
                 <button type="submit" disabled={loading} className="flex-1 bg-[#6B4EE6] hover:bg-[#5A3DD5] text-white py-3 rounded-xl font-medium shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center">
                   {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Log in"}
                 </button>
-                <button type="button" onClick={handleGoogleLogin} className="flex items-center justify-center px-4 bg-gray-50 dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent rounded-xl hover:bg-[#3A3A3C] transition-colors">
-                  <FcGoogle className="" size={18} />
+                
+                {/* 3. Google Button Fix - Removed extra syntax */}
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isGoogleLoading}
+                  className={`flex items-center justify-center px-4 h-auto py-2 bg-gray-50 dark:bg-[#2C2C2E] border border-gray-200 dark:border-transparent rounded-xl transition-colors ${
+                    isGoogleLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#3A3A3C]'
+                  }`}
+                >
+                  {isGoogleLoading ? (
+                    <svg 
+                      className="animate-spin h-5 w-5 text-gray-500 dark:text-gray-300" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <FcGoogle size={20} />
+                  )}
                 </button>
               </div>
             </form>
@@ -117,15 +149,9 @@ function Login() {
               {!otpSent ? (
                 <>
                   <div className="relative group">
-                    {/* <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 z-10" /> */}
-                    <p>features under testing - stay tuned! </p>
-                    {/* <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-gray-50 dark:bg-[#2C2C2E] rounded-xl py-3 pl-11 pr-4 text-white focus:border-indigo-500" placeholder="919876543210 (Country Code must)" required /> */}
+                    <p className="text-gray-500 text-center py-4">Features under testing - stay tuned!</p>
                   </div>
-                  {/* Recaptcha Container - Required by Firebase */}
                   <div id="recaptcha-container"></div>
-                  {/* <button type="submit" disabled={loading} className="w-full bg-[#6B4EE6] text-white py-3 rounded-xl font-medium transition-all flex justify-center">
-                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Send OTP"}
-                  </button> */}
                 </>
               ) : (
                 <>

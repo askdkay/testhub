@@ -278,34 +278,56 @@ const fetchData = async () => {
     }
   };
 
-  const handleSave = async (publish = false) => {
-    if (!validateJSON()) return;
-
+  // Replace the handleSubmit function
+const handleSave = async (publish = false) => {
+    if (editorMode === 'json' && !validateJSON()) return;
+    
     setSaving(true);
     setError('');
     setSuccess('');
-
+    
     try {
-      const parsedData = JSON.parse(jsonData);
-      parsedData.is_published = publish;
-
-      await API.post(`/examDetails/admin/pages/${examId}`, parsedData);
-
-      setIsPublished(publish);
-      setSuccess(publish ? '✅ Page published successfully!' : '✅ Draft saved successfully!');
-
-      // Refresh data to show saved content
-      setTimeout(() => {
+        let parsedData;
+        if (editorMode === 'json') {
+            parsedData = JSON.parse(jsonData);
+        } else {
+            parsedData = parseHTMLToJSON(htmlData);
+        }
+        
+        // Create FormData to send file
+        const formData = new FormData();
+        
+        // Convert JSON to Blob and append as file
+        const jsonBlob = new Blob([JSON.stringify(parsedData, null, 2)], { type: 'application/json' });
+        formData.append('jsonFile', jsonBlob, `exam-${examId}.json`);
+        
+        // Add other fields
+        formData.append('exam_title', parsedData.exam_title || exam?.name);
+        formData.append('exam_full_form', parsedData.exam_full_form || '');
+        formData.append('conducting_body', parsedData.conducting_body || '');
+        formData.append('official_website', parsedData.official_website || '');
+        formData.append('exam_language', JSON.stringify(parsedData.exam_language || []));
+        formData.append('exam_level', parsedData.exam_level || '');
+        formData.append('exam_category', parsedData.exam_category || '');
+        formData.append('exam_frequency', parsedData.exam_frequency || '');
+        formData.append('is_published', publish);
+        
+        await API.post(`/examDetails/admin/pages/${examId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        setIsPublished(publish);
+        setSuccess(publish ? 'Page published successfully to Cloudinary!' : 'Draft saved to Cloudinary!');
         fetchData();
-      }, 1000);
-
+        
+        setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error saving page:', error);
-      setError('Failed to save page: ' + (error.response?.data?.message || error.message));
+        console.error('Error saving page:', error);
+        setError('Failed to save page: ' + (error.response?.data?.message || error.message));
     } finally {
-      setSaving(false);
+        setSaving(false);
     }
-  };
+};
 
   const handlePreview = () => {
     if (!validateJSON()) return;

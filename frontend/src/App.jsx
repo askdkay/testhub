@@ -77,7 +77,10 @@ function NavbarWrapper() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  }}>
         <NavbarWrapper />
 
         {/* Sirf EK Routes component hona chahiye */}
@@ -291,11 +294,25 @@ function App() {
               </AdminRoute>
             }
           />
-          <Route path="/admin/notifications" element={
+          // Add these routes
+<Route path="/admin/add-test" element={
   <AdminRoute>
-    <NotificationManager />
+    <AddTest />
   </AdminRoute>
 } />
+<Route path="/admin/edit-test/:testId" element={
+  <AdminRoute>
+    <AddTest />
+  </AdminRoute>
+} />
+          <Route
+            path='/admin/notifications'
+            element={
+              <AdminRoute>
+                <NotificationManager />
+              </AdminRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

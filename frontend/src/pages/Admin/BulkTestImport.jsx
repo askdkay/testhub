@@ -50,7 +50,7 @@ function BulkTestImport() {
             const res = await API.get('/exams/categories');
             setCategories(res.data);
         } catch (error) {
-            console.error('Error fetching categories:', error);
+            // console.error('Error fetching categories:', error);
         }
     };
 
@@ -59,7 +59,7 @@ function BulkTestImport() {
             const res = await API.get('/exams/exams-list');
             setExams(res.data);
         } catch (error) {
-            console.error('Error fetching exams:', error);
+            // console.error('Error fetching exams:', error);
         }
     };
 
@@ -89,7 +89,7 @@ function BulkTestImport() {
             const res = await API.get(`/admin/tests?exam_id=${examId}`);
             setExistingTests(res.data);
         } catch (error) {
-            console.error('Error fetching existing tests:', error);
+            // console.error('Error fetching existing tests:', error);
         } finally {
             setLoadingExistingTests(false);
         }
@@ -99,12 +99,12 @@ function BulkTestImport() {
     const loadTestForEdit = async (testId) => {
         setLoadingExistingTests(true);
         try {
-            console.log('📥 Fetching test details for ID:', testId);
+            // console.log('📥 Fetching test details for ID:', testId);
             
             const res = await API.get(`/admin/tests/${testId}`);
             const test = res.data;
             
-            console.log('✅ Test fetched:', test);
+            // console.log('✅ Test fetched:', test);
             
             const questions = test.questions || [];
             
@@ -168,7 +168,7 @@ function BulkTestImport() {
             validateJSON(JSON.stringify(jsonForEditor, null, 2));
             
         } catch (error) {
-            console.error('Error loading test for edit:', error);
+            // console.error('Error loading test for edit:', error);
             alert(`Failed to load test data: ${error.response?.data?.message || error.message}`);
         } finally {
             setLoadingExistingTests(false);
@@ -273,7 +273,7 @@ function BulkTestImport() {
         
         setLoading(true);
         try {
-            console.log('📝 Updating test:', selectedExistingTest.id);
+            // console.log('📝 Updating test:', selectedExistingTest.id);
             
             await API.put(`/admin/tests/${selectedExistingTest.id}`, {
                 title: editingTestData.title,
@@ -286,11 +286,11 @@ function BulkTestImport() {
                 status: editingTestData.status
             });
             
-            console.log('✅ Test details updated');
+            // console.log('✅ Test details updated');
             
             // Delete existing questions
             await API.delete(`/admin/tests/${selectedExistingTest.id}/questions`);
-            console.log('✅ Old questions deleted');
+            // console.log('✅ Old questions deleted');
             
             // Add new questions
             if (editingTestData.questions && editingTestData.questions.length > 0) {
@@ -312,7 +312,7 @@ function BulkTestImport() {
                 };
                 
                 await API.post('/admin/questions/bulk', questionsData);
-                console.log(`✅ ${editingTestData.questions.length} new questions added`);
+                // console.log(`✅ ${editingTestData.questions.length} new questions added`);
             }
             
             alert('Test updated successfully!');
@@ -325,7 +325,7 @@ function BulkTestImport() {
             }
             
         } catch (error) {
-            console.error('Error updating test:', error);
+            // console.error('Error updating test:', error);
             alert(`Failed to update test: ${error.response?.data?.message || error.message}`);
         } finally {
             setLoading(false);
@@ -334,84 +334,80 @@ function BulkTestImport() {
 
     // Import New Tests
     const handleImport = async () => {
-        if (!parsedData) return;
+    if (!parsedData) return;
 
-        setLoading(true);
-        setImportProgress(0);
-        const results = [];
+    setLoading(true);
+    setImportProgress(0);
+    const results = [];
 
-        try {
-            for (let i = 0; i < parsedData.tests.length; i++) {
-                const test = parsedData.tests[i];
-
-                try {
-                    const testData = {
+    try {
+        for (let i = 0; i < parsedData.tests.length; i++) {
+            const test = parsedData.tests[i];
+            
+            try {
+                // console.log(`📝 Processing test ${i + 1}:`, test.title);
+                
+                // Create JSON structure
+                const jsonData = {
+                    test: {
                         title: test.title,
-                        description: test.description || "",
-                        category_id: selectedCategory || null,
-                        exam_id: selectedExam || null,
+                        description: test.description || '',
+                        category_id: test.category_id || null,
+                        exam_id: test.exam_id || null,
                         duration: test.duration || 60,
-                        total_questions: test.questions?.length || 0,
-                        total_marks: test.total_marks || (test.questions?.length * 4) || 0,
                         passing_marks: test.passing_marks || 40,
                         negative_marking: test.negative_marking || 0.25,
                         is_free: test.is_free || false,
                         price: test.price || 0,
-                        language: test.language || "english",
-                        status: test.status || "draft",
-                        instructions: test.instructions || "",
-                    };
-
-                    const testRes = await API.post("/admin/tests/bulk", testData);
-
-                    if (test.questions && test.questions.length > 0) {
-                        const questionsData = {
-                            testId: testRes.data.testId,
-                            questions: test.questions.map((q) => ({
-                                question_text: q.question_text || "",
-                                question_text_hindi: q.question_text_hindi || "",
-                                option_a: q.option_a || "",
-                                option_b: q.option_b || "",
-                                option_c: q.option_c || "",
-                                option_d: q.option_d || "",
-                                correct_answer: q.correct_answer || "A",
-                                explanation: q.explanation || "",
-                                marks: q.marks || 4,
-                                difficulty: q.difficulty || "medium",
-                                topic: q.topic || "",
-                            })),
-                        };
-                        await API.post("/admin/questions/bulk", questionsData);
-                    }
-
-                    results.push({
-                        success: true,
-                        title: test.title,
-                        testId: testRes.data.testId,
-                        questionsCount: test.questions?.length || 0,
-                    });
-                } catch (err) {
-                    results.push({
-                        success: false,
-                        title: test.title,
-                        error: err.response?.data?.message || err.message,
-                    });
-                }
-
-                setImportProgress(((i + 1) / parsedData.tests.length) * 100);
+                        language: test.language || 'english',
+                        difficulty: test.difficulty || 'medium',
+                        instructions: test.instructions || ''
+                    },
+                    questions: test.questions || []
+                };
+                
+                // Create FormData
+                const formData = new FormData();
+                const jsonBlob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+                formData.append('jsonFile', jsonBlob, `test-${Date.now()}.json`);
+                
+                // Upload to backend
+                const res = await API.post('/admin/tests/bulk', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                
+                // console.log('✅ Test created:', res.data);
+                
+                results.push({
+                    success: true,
+                    title: test.title,
+                    testId: res.data.testId,
+                    questionsCount: test.questions?.length || 0,
+                    jsonUrl: res.data.jsonUrl
+                });
+                
+            } catch (err) {
+                // console.error(`❌ Error in test ${i + 1}:`, err);
+                results.push({
+                    success: false,
+                    title: test.title,
+                    error: err.response?.data?.message || err.message
+                });
             }
-
-            setImportResults(results);
-            setShowResults(true);
-            if (selectedExam) {
-                fetchExistingTests(selectedExam);
-            }
-        } catch (error) {
-            setError("Import failed: " + error.message);
-        } finally {
-            setLoading(false);
+            
+            setImportProgress(((i + 1) / parsedData.tests.length) * 100);
         }
-    };
+        
+        setImportResults(results);
+        setShowResults(true);
+        
+    } catch (error) {
+        // console.error('Import error:', error);
+        setError('Import failed: ' + error.message);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const downloadSample = () => {
         const blob = new Blob([JSON.stringify(sampleJSON, null, 2)], { type: "application/json" });
