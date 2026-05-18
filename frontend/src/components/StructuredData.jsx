@@ -3,8 +3,8 @@ function StructuredData() {
         "@context": "https://schema.org",
         "@type": "EducationalOrganization",
         "name": "TestHub",
-        "url": "https://testhub-three.vercel.app",
-        "logo": "https://testhub-three.vercel.app/logo.png",
+        "url": "https://examcreast.vercel..app",
+        "logo": "https://examcreast.vercel..app/logo.png",
         "description": "India's most advanced test series platform for competitive exams",
         "sameAs": [
             "https://facebook.com/testhub",
