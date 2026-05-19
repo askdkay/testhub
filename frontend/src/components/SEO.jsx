@@ -2,7 +2,7 @@ import { Helmet } from 'react-helmet-async';
 
 function SEO({ title, description, keywords, image, url }) {
     const siteTitle = "TestHub - India's Test Series Platform";
-    const siteUrl = "https://examcreast.vercel..app";
+    const siteUrl = "https://examcreast.vercel.app";
     
     return (
         <Helmet>

@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-const BASE_URL = 'https://examcreast.vercel..app';
+const BASE_URL = 'https://examcreast.vercel.app';
 
 const pages = [
     { url: '/', priority: '1.0', changefreq: 'daily' },

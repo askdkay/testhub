@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
 function ExamSEO({ exam, examDetails, categoryName }) {
-    const siteUrl = "https://examcreast.vercel..app";
+    const siteUrl = "https://examcreast.vercel.app";
     const examUrl = `${siteUrl}/exam/${exam?.slug}`;
     
     // Debug log to check if component is receiving data
