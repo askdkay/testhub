@@ -13,7 +13,7 @@ const allowedOrigins = [
     'http://localhost:3000',
     'https://testhub-three.vercel.app',
     'https://testhub-66a0.onrender.com',
-    'https://examcreast.vercel.app/'
+    'https://examcreast.vercel.app'
 ];
 
 app.use(cors({
